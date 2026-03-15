@@ -189,6 +189,29 @@ void cadastrar_discente(char *onde) {
     salvar_discente(onde, discente);
 }
 
+void pesquisar_discente(char *onde) {
+    char buff[TAM_MAX];
+    char busca[TAM_MAX];
+    int qtd_cads = contar_cadastros(onde);
+    Discente *discentes = popular_discentes(qtd_cads, onde);
+
+    printf("> ");
+    fgets(busca, TAM_MAX, stdin);
+    cortar_nl(busca);
+    limpar_tela();
+
+    printf("----: pesquisar discente :----\n\n");
+    for (int i = 0; i < qtd_cads; ++i) {
+        strncpy(buff, discentes[i].nome, strlen(busca));
+        if (strcmp(busca, buff) == 0) {
+            //printf("│ %s\n", discentes[i].nome);
+            imprimir_discente(discentes[i]);
+        }
+    }
+
+    getchar();
+}
+
 void salvar_curso(char *onde, Curso curso) {
     FILE *f = fopen(onde, "a");
     fprintf(f, "%s,%d,%d,%d,%d\n", curso.nome, curso.codigo, curso.horas, curso.vagas, curso.numero_participantes);
@@ -302,6 +325,8 @@ int main(void) {
                 printf("----: discentes :----\n");
                 printf("1. Cadastrar discente\n");
                 printf("2. Remover discente\n");
+                printf("3. Pesquisar\n");
+
                 printf("\n> ");
 
                 fgets(op, 8, stdin);
@@ -313,6 +338,10 @@ int main(void) {
                     limpar_tela();
                     printf("----: remover discente :----\n");
                     remover_discente(arquivos[ARQ_DISCENTES]);
+                } else if (*op == '3') {
+                    limpar_tela();
+                    printf("----: pesquisar discente :----\n");
+                    pesquisar_discente(arquivos[ARQ_DISCENTES]);
                 }
                 
                 menu = PRINCIPAL;
@@ -352,7 +381,6 @@ int main(void) {
                     limpar_tela();
                     printf("----: relatorios :----\n\n");
                     exibir_cursos(arquivos[ARQ_CURSOS]);
-                    getchar();
                 }
 
                 menu = PRINCIPAL;
