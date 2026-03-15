@@ -3,7 +3,11 @@
 #include <string.h>
 #include <stdlib.h>
 
-#define QTD_OP 5
+#ifdef _WIN32
+#define limpar_tela() system("cls")
+#else
+#define limpar_tela() system("clear")
+#endif
 
 #define TAM_MAX 256
 
@@ -12,15 +16,15 @@ typedef enum {
     DISCENTES,
     CURSOS,
     TURMAS,
-    RELATÓRIOS,
+    RELATORIOS,
     INVALIDO,
     SAIR
 } Menus;
 
 typedef struct {
-    char cpf[TAM_MAX];
     char nome[TAM_MAX];
-    int idade;
+    char cpf[TAM_MAX];
+    char idade[TAM_MAX];
 } Discente;
 
 typedef struct {
@@ -44,30 +48,78 @@ void imprimir_discente(Discente discente) {
     printf("----------------\n");
     printf("| Nome  | %s\n", discente.nome);
     printf("| CPF   | %s\n", discente.cpf);
-    printf("| Idade | %d\n", discente.idade);
+    printf("| Idade | %s\n", discente.idade);
     printf("----------------\n");
 }
 
-void salvar_discente(char *onde, Discente discente) {
-    FILE *f = fopen(onde, "ab");
+int contar_cadastros(char *onde) {
+    int c = 0;
 
-    fseek(f, 0, sizeof(Discente));
-    fwrite(&discente, sizeof(Discente), 1, f);
-    
+    FILE *f = fopen(onde, "r");
+    if (f == NULL) return 0;
+
+    while (!feof(f)) {
+        if(fgetc(f) == '\n') c++;
+    }
     fclose(f);
+    
+    return c;
 }
 
-Discente abrir_discente(int qual, char *onde) {
-    FILE *f = fopen(onde, "rb");
+void extrair_item(FILE *f, char *dst) {
+    int indice = 0;
+    char c;
+    for (;;) {
+        c = fgetc(f);
+        if (feof(f) != 0) return;
+        if (c == ',' || c == '\n') {
+            dst[indice++] = '\0';
+            indice = 0;
+            break;
+        }
+        dst[indice++] = c;
+    }
+}
 
-    Discente discente = {0};
+Discente *popular_discentes(int qtd_cads, char *onde) {
+    Discente *discentes = malloc(sizeof(Discente) * qtd_cads);
+    char buff[TAM_MAX];
 
-    fseek(f, sizeof(Discente) * qual, SEEK_SET);
-    fread(&discente, sizeof(Discente), 1, f);
+    FILE *f = fopen(onde, "r");
+    if (f == NULL) {
+        fprintf(stderr, "popular_discentes(): erro: nao foi possivel abrir arquivo: %s\n", onde);
+        exit(1);
+    };
+
+    for (int i = 0; i < qtd_cads; ++i) {
+        extrair_item(f, buff);
+        strcpy(discentes[i].nome, buff);
+
+        extrair_item(f, buff);
+        strcpy(discentes[i].cpf, buff);
+
+        extrair_item(f, buff);
+        strcpy(discentes[i].idade, buff);
+    }
+
+    return discentes;
+}
+
+void exibir_discentes(char *onde) {
+    int qtd_cads = contar_cadastros(onde);
+    Discente *discentes = popular_discentes(qtd_cads, onde);;
+
+    if (discentes )
     
-    fclose(f);
+    for (int i = 0; i < qtd_cads; ++i) {
+        printf("+ %s\n+ %s\n+ %s\n------------------------\n", discentes[i].nome, discentes[i].cpf, discentes[i].idade);
+    }
+}
 
-    return discente;
+void salvar_discente(char *onde, Discente discente) {
+    FILE *f = fopen(onde, "a");
+    fprintf(f, "%s,%s,%s\n", discente.nome, discente.cpf, discente.idade);
+    fclose(f);
 }
 
 void cortar_nl(char *s) {
@@ -76,8 +128,8 @@ void cortar_nl(char *s) {
     s[i - 1] = '\0';
 }
 
-Discente cadastrar_discente() {
-    Discente discente = { 0 };
+void cadastrar_discente(char *onde) {
+    Discente discente = {0};
 
     printf("Nome: ");
     fgets(discente.nome, TAM_MAX, stdin);
@@ -88,30 +140,38 @@ Discente cadastrar_discente() {
     cortar_nl(discente.cpf);
 
     printf("Idade: ");
-    scanf("%d", &discente.idade);
+    fgets(discente.idade, TAM_MAX, stdin);
+    cortar_nl(discente.idade);
 
-    salvar_discente("discentes.db", discente);
-
-    return discente;
+    salvar_discente(onde, discente);
 }
 
 int main(void) {
     Menus menu = PRINCIPAL;
 
+    char *arquivo = "discentes.csv";
     char op[8];
     
     for (;;) {
-        system("clear");
+        limpar_tela();
         switch (menu) {
             case PRINCIPAL:
                 printf("----: menu principal :----\n");
                 printf("1. Discentes\n");
-                printf("2. Sair\n");
+                printf("2. Cursos\n");
+                printf("x. Turmas\n");
+                printf("x. Relatorios\n");
+                printf("5. Sair\n");
                 printf("\n> ");
                 fgets(op, 8, stdin);
 
                 if (*op == '1') menu = DISCENTES;
-                if (*op == '2') menu = SAIR;
+                else if (*op == '2') menu = CURSOS;
+                else if (*op == '3') menu = TURMAS;
+                else if (*op == '4') menu = RELATORIOS;
+                else if (*op == '5') menu = SAIR;
+                else menu = INVALIDO;
+
                 break;
             case DISCENTES:
                 printf("----: discentes :----\n");
@@ -119,25 +179,49 @@ int main(void) {
                 printf("2. Remover discente\n");
                 printf("3. Listar discentes\n");
                 printf("\n> ");
+
+                fgets(op, 8, stdin);
+                if (*op == '1') {
+                    limpar_tela();
+                    printf("----: cadastrar discente :----\n");
+                    cadastrar_discente(arquivo);
+                }
+                if (*op == '3') {
+                    limpar_tela();
+                    printf("----: discentes :----\n\n");
+                    exibir_discentes(arquivo);
+                    getchar();
+                }
+                
+                menu = PRINCIPAL;
+                break;
+            case CURSOS:
+                printf("----: cursos :----\n");
+                printf("1. Listar cursos\n");
+                printf("\n> ");
+
                 fgets(op, 8, stdin);
                 
+                if (*op == '1') {
+                    limpar_tela();
+                    getchar();
+                }
+
                 menu = PRINCIPAL;
                 break;
             case SAIR:
                     printf("tchauu!\n");
-                    exit(1);
+                    getchar();
+                    return 0;
                 break;
             default:
-                printf("opção inválida: %s\n", op);
+                printf("----: erro :----\n");
+                printf("opção inválida!!\n");
                 getchar();
+
                 menu = PRINCIPAL;
         }
     }
-
-    // Discente discente = cadastrar_discente();
-
-    // Discente discente = abrir_discente(2, "discentes.db");
-    // imprimir_discente(discente);
     
     return 0;
 }
