@@ -50,6 +50,12 @@ typedef struct {
     char cpf[TAM_MAX];
 } Turma;
 
+void cortar_nl(char *s) {
+    int i = 0;
+    while (s[i] != '\0') i++;
+    s[i - 1] = '\0';
+}
+
 void imprimir_discente(Discente discente) {
     printf("+--------------------------------+\n");
     printf("│ Nome  │ %s\n", discente.nome);
@@ -123,7 +129,7 @@ Discente *popular_discentes(int qtd_cads, char *onde) {
 
 void exibir_discentes(char *onde) {
     int qtd_cads = contar_cadastros(onde);
-    Discente *discentes = popular_discentes(qtd_cads, onde);;
+    Discente *discentes = popular_discentes(qtd_cads, onde);
 
     for (int i = 0; i < qtd_cads; ++i) {
         imprimir_discente(discentes[i]);
@@ -136,10 +142,31 @@ void salvar_discente(char *onde, Discente discente) {
     fclose(f);
 }
 
-void cortar_nl(char *s) {
-    int i = 0;
-    while (s[i] != '\0') i++;
-    s[i - 1] = '\0';
+void remover_discente(char *onde) {
+    int qtd_cads = contar_cadastros(onde);
+    char buff[TAM_MAX];
+
+    Discente *discentes = popular_discentes(qtd_cads, onde);
+
+    printf("+--------------------------------+\n");
+    for (int i = 0; i < qtd_cads; ++i) {
+        printf("│ %d │ %s\n", i, discentes[i].nome);
+    }
+    printf("+--------------------------------+\n");
+
+    printf("Digite o numero identificador do discente:\n");
+    printf("> ");
+
+    fgets(buff, TAM_MAX, stdin);
+    cortar_nl(buff);
+
+
+    for (int k = 0; k < qtd_cads; ++k) {
+        if (strcmp(discentes[k].nome, discentes[atoi(buff)].nome) == 0) continue;
+        salvar_discente("tmp.csv", discentes[k]);
+    }
+
+    rename("tmp.csv", onde);
 }
 
 void cadastrar_discente(char *onde) {
@@ -199,8 +226,8 @@ void cadastrar_curso(char *onde) {
     salvar_curso(onde, curso);
 }
 
-Curso *popular_cursos(int qtd_cursos, char *onde) {
-    Curso *cursos = malloc(sizeof(Curso) * qtd_cursos);
+Curso *popular_cursos(int qtd_cads, char *onde) {
+    Curso *cursos = malloc(sizeof(Curso) * qtd_cads);
     char buff[TAM_MAX];
 
     FILE *f = fopen(onde, "r");
@@ -209,7 +236,7 @@ Curso *popular_cursos(int qtd_cursos, char *onde) {
         exit(1);
     };
 
-    for (int i = 0; i < qtd_cursos; ++i) {
+    for (int i = 0; i < qtd_cads; ++i) {
         extrair_item(f, buff);
         strcpy(cursos[i].nome, buff);
 
@@ -230,10 +257,10 @@ Curso *popular_cursos(int qtd_cursos, char *onde) {
 }
 
 void exibir_cursos(char *onde) {
-    int qtd_cursos = contar_cadastros(onde);
-    Curso *cursos = popular_cursos(qtd_cursos, onde);
+    int qtd_cads = contar_cadastros(onde);
+    Curso *cursos = popular_cursos(qtd_cads, onde);
 
-    for (int i = 0; i < qtd_cursos; ++i) {
+    for (int i = 0; i < qtd_cads; ++i) {
         imprimir_curso(cursos[i]);
     }
 }
@@ -274,7 +301,7 @@ int main(void) {
             case DISCENTES:
                 printf("----: discentes :----\n");
                 printf("1. Cadastrar discente\n");
-                printf("x. Remover discente\n");
+                printf("2. Remover discente\n");
                 printf("\n> ");
 
                 fgets(op, 8, stdin);
@@ -282,6 +309,10 @@ int main(void) {
                     limpar_tela();
                     printf("----: cadastrar discente :----\n");
                     cadastrar_discente(arquivos[ARQ_DISCENTES]);
+                } else if (*op == '2') {
+                    limpar_tela();
+                    printf("----: remover discente :----\n");
+                    remover_discente(arquivos[ARQ_DISCENTES]);
                 }
                 
                 menu = PRINCIPAL;
