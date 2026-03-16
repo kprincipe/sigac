@@ -204,7 +204,6 @@ void pesquisar_discente(char *onde) {
     for (int i = 0; i < qtd_cads; ++i) {
         strncpy(buff, discentes[i].nome, strlen(busca));
         if (strcmp(busca, buff) == 0) {
-            //printf("│ %s\n", discentes[i].nome);
             imprimir_discente(discentes[i]);
         }
     }
@@ -288,6 +287,32 @@ void exibir_cursos(char *onde) {
     }
 }
 
+void remover_curso(char *onde) {
+    int qtd_cads = contar_cadastros(onde);
+    char buff[TAM_MAX];
+
+    Curso *cursos = popular_cursos(qtd_cads, onde);
+
+    printf("+--------------------------------+\n");
+    for (int i = 0; i < qtd_cads; ++i) {
+        printf("│ %d │ %s\n", i, cursos[i].nome);
+    }
+    printf("+--------------------------------+\n");
+
+    printf("Digite o numero identificador do curso:\n");
+    printf("> ");
+
+    fgets(buff, TAM_MAX, stdin);
+    cortar_nl(buff);
+
+    for (int k = 0; k < qtd_cads; ++k) {
+        if (strcmp(cursos[k].nome, cursos[atoi(buff)].nome) == 0) continue;
+        salvar_curso("tmp.csv", cursos[k]);
+    }
+
+    rename("tmp.csv", onde);
+}
+
 int main(void) {
     Menus menu = PRINCIPAL;
 
@@ -349,7 +374,7 @@ int main(void) {
             case CURSOS:
                 printf("----: cursos :----\n");
                 printf("1. Cadastrar curso\n");
-                printf("x. Remover curso\n");
+                printf("2. Remover curso\n");
                 printf("\n> ");
 
                 fgets(op, 8, stdin);
@@ -358,6 +383,10 @@ int main(void) {
                     limpar_tela();
                     printf("----: cadastrar curso :----\n");
                     cadastrar_curso(arquivos[ARQ_CURSOS]);
+                } else if (*op == '2') {
+                    limpar_tela();
+                    printf("----: remover curso :----\n");
+                    remover_curso(arquivos[ARQ_CURSOS]);
                 }
 
                 menu = PRINCIPAL;
@@ -381,6 +410,7 @@ int main(void) {
                     limpar_tela();
                     printf("----: relatorios :----\n\n");
                     exibir_cursos(arquivos[ARQ_CURSOS]);
+                    getchar();
                 }
 
                 menu = PRINCIPAL;
