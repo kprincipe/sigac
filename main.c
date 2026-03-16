@@ -47,7 +47,8 @@ typedef struct {
     int ano;
     float nota;
     int horas_participacao;
-    char cpf[TAM_MAX];
+    int qtd_cpf;
+    char **cpf;
 } Turma;
 
 void cortar_nl(char *s) {
@@ -81,8 +82,12 @@ void imprimir_turma(Turma turma) {
     printf("│ ano        │ %d h\n", turma.ano);
     printf("│ nota       │ %.2f\n", turma.nota);
     printf("│ hrs. part. │ %d\n", turma.horas_participacao);
-    printf("│ cpf        │ %s\n", turma.cpf);
-    printf("+--------------------------------+\n\n");
+    printf("│            │\n");
+    printf("│ cpfs       │");
+    for (int i = 0; i < turma.qtd_cpf; ++i) {
+        printf(" %s\n│            │", turma.cpf[i]);
+    }
+    printf("\n+--------------------------------+\n\n");
 }
 
 int contar_cadastros(char *onde) {
@@ -324,13 +329,20 @@ void remover_curso(char *onde) {
     rename("tmp.csv", onde);
 }
 
-void salvar_turma(char *onde, Turma turma) {
+void salvar_turma(char *onde, Turma turma, Discente *discentes_adicionados[], int qtd_disc) {
     FILE *f = fopen(onde, "a");
-    fprintf(f, "%d,%d,%d,%f,%d,%s\n", turma.numero, turma.codigo, turma.ano, turma.nota, turma.horas_participacao, turma.cpf);
+
+    fprintf(f, "%d,%d,%d,%f,%d,%d,", turma.numero, turma.codigo, turma.ano, turma.nota, turma.horas_participacao, qtd_disc);
+    for (int i = 0; i < qtd_disc; i++) {
+        fprintf(f, "%s", discentes_adicionados[i]->cpf);
+        if (i < qtd_disc) fprintf(f, ",");
+    }
+    fprintf(f, "\n");
+
     fclose(f);
 }
 
-void cadastrar_turma(char *onde) {
+void cadastrar_turma(char *onde[]) {
     Turma turma = {0};
     char buff[TAM_MAX];
     
@@ -358,16 +370,57 @@ void cadastrar_turma(char *onde) {
     fgets(buff, TAM_MAX, stdin);
     cortar_nl(buff);
     turma.horas_participacao = atoi(buff);
+    
+    int qtd_disc = 0;
+    int qtd_cads = contar_cadastros(onde[ARQ_DISCENTES]);
+    Discente *discentes_adicionados[TAM_MAX];
+    Discente *discentes = popular_discentes(qtd_cads, onde[ARQ_DISCENTES]);
 
-    printf("cpf: ");
-    fgets(turma.cpf, TAM_MAX, stdin);
-    cortar_nl(turma.cpf);
+    for (;;) {
+        limpar_tela();
+        printf("----: adicionar discente :----\n\n");
+        for (int i = 0; i < qtd_cads; ++i) {
+            int adicionado = 0;
+            for (int j = 0; j < qtd_disc; ++j) {
+                if (strcmp(discentes[i].cpf, discentes_adicionados[j]->cpf) == 0) {
+                    adicionado = 1;
+                }
+            }
 
-    salvar_turma(onde, turma);
+            if (!adicionado) {
+                printf("+ %s (%s)\n", discentes[i].cpf, discentes[i].nome);
+            }
+        }
+
+        printf("+---------: adicionados :---------+\n\n");
+
+        if (qtd_disc == 0) printf("nenhum discente adicionado!!\n\n");
+
+        for (int k = 0; k < qtd_disc; ++k) {
+            printf("+ %s (%s)\n", discentes_adicionados[k]->cpf, discentes_adicionados[k]->nome);
+        }
+        printf("\n");
+        printf("digite cpf do discente para adicionar a turma (q para finalizar):\n");
+        printf("> ");
+        
+        fgets(buff, TAM_MAX, stdin);
+        cortar_nl(buff);
+
+        if (*buff == 'q') break;
+        
+        for (int i = 0; i < qtd_cads; ++i) {
+            if (strcmp(discentes[i].cpf, buff) == 0) {
+                discentes_adicionados[qtd_disc++] = &discentes[i];
+            }
+        }
+    }
+
+    salvar_turma(onde[ARQ_TURMAS], turma, discentes_adicionados, qtd_disc);
 }
 
 Turma *popular_turmas(int qtd_cads, char *onde) {
     Turma *turmas = malloc(sizeof(Turma) * qtd_cads);
+
     char buff[TAM_MAX];
 
     FILE *f = fopen(onde, "r");
@@ -393,9 +446,20 @@ Turma *popular_turmas(int qtd_cads, char *onde) {
         turmas[i].horas_participacao = atoi(buff);
 
         extrair_item(f, buff);
-        strcpy(turmas[i].cpf, buff);
-    }
+        int qtd_disc = atoi(buff);
 
+        turmas[i].qtd_cpf = qtd_disc;
+
+        turmas[i].cpf = malloc(qtd_disc);
+
+        for (int j = 0; j < qtd_disc; ++j) {
+            turmas[i].cpf[j] = malloc(sizeof(char) * strlen(buff));
+
+            extrair_item(f, buff);
+            strcpy(turmas[i].cpf[j], buff);
+        }
+    }
+    
     return turmas;
 }
 
@@ -428,7 +492,7 @@ void remover_turma(char *onde) {
 
     for (int k = 0; k < qtd_cads; ++k) {
         if (turmas[k].codigo == turmas[atoi(buff)].codigo) continue;
-        salvar_turma("tmp.csv", turmas[k]);
+        //salvar_turma("tmp.csv", turmas[k]);
     }
 
     rename("tmp.csv", onde);
@@ -471,6 +535,7 @@ int main(void) {
                 printf("----: discentes :----\n\n");
                 printf("1. cadastrar discente\n");
                 printf("2. remover discente\n");
+                printf("x. editar discente\n");
 
                 printf("\n> ");
 
@@ -491,6 +556,8 @@ int main(void) {
                 printf("----: cursos :----\n\n");
                 printf("1. cadastrar curso\n");
                 printf("2. remover curso\n");
+                printf("x. editar curso\n");
+
                 printf("\n> ");
 
                 fgets(op, 8, stdin);
@@ -512,6 +579,7 @@ int main(void) {
                 printf("----: turmas :----\n\n");
                 printf("1. cadastrar turma\n");
                 printf("2. remover turma\n");
+                printf("x. editar turma\n");
                 printf("\n> ");
 
                 fgets(op, 8, stdin);
@@ -519,7 +587,7 @@ int main(void) {
                 if (*op == '1') {
                     limpar_tela();
                     printf("----: cadastrar turma :----\n\n");
-                    cadastrar_turma(arquivos[ARQ_TURMAS]);
+                    cadastrar_turma(arquivos);
                 } else if (*op == '2') {
                     limpar_tela();
                     printf("----: remover turma :----\n\n");
@@ -533,31 +601,52 @@ int main(void) {
                 printf("----: relatorios :----\n\n");
                 printf("1. discentes\n");
                 printf("2. cursos\n");
-                printf("3. pesquisar discente\n");
-                printf("4. turmas\n");
+                printf("3. turmas\n");
                 printf("\n> ");
 
                 fgets(op, 8, stdin);
+                switch (*op) {
+                    case '1':
+                        limpar_tela();
+                        printf("----: listagem discentes :----\n\n");
+                        exibir_discentes(arquivos[ARQ_DISCENTES]);
+                        //printf("----: pesquisar discente :----\n");
+                        //pesquisar_discente(arquivos[ARQ_DISCENTES]);
+                        getchar();
+                        break;
+                    case '2':
+                        limpar_tela();
+                        printf("----: listagem cursos :----\n\n");
+                        exibir_cursos(arquivos[ARQ_CURSOS]);
+                        getchar();
+                        break;
+                    case '3':
+                        limpar_tela();
+                        printf("----: listagem turmas :----\n\n");
+                        printf("1. todas as turmas\n");
+                        printf("2. por desempenho\n");
+                        printf("x. relatorio detalhado\n");
 
-                if (*op == '1') {
-                    limpar_tela();
-                    printf("----: listagem discentes :----\n\n");
-                    exibir_discentes(arquivos[ARQ_DISCENTES]);
-                    getchar();
-                } else if (*op == '2') {
-                    limpar_tela();
-                    printf("----: listagem cursos :----\n\n");
-                    exibir_cursos(arquivos[ARQ_CURSOS]);
-                    getchar();
-                } else if (*op == '3') {
-                    limpar_tela();
-                    printf("----: pesquisar discente :----\n");
-                    pesquisar_discente(arquivos[ARQ_DISCENTES]);
-                } else if (*op == '4') {
-                    limpar_tela();
-                    printf("----: listagem turmas :----\n");
-                    exibir_turmas(arquivos[ARQ_TURMAS]);
-                    getchar();
+                        fgets(op, 8, stdin);
+
+                        switch (*op) {
+                            case '1':
+                                limpar_tela();
+                                printf("----: todas as turmas :----\n\n");
+                                exibir_turmas(arquivos[ARQ_TURMAS]);
+                                break;
+                            case '2':
+                                limpar_tela();
+                                printf("----: turmas por desempenho :----\n\n");
+
+                                getchar();
+                                break;
+                        }
+
+                        getchar();
+                        break;
+                    default:
+                        menu = INVALIDO;
                 }
 
                 menu = PRINCIPAL;
