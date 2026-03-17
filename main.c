@@ -341,7 +341,7 @@ void salvar_turma(char *onde, Turma turma) {
     fprintf(f, "%d,%d,%d,%d,%d,", turma.numero, turma.codigo, turma.ano, turma.horas_participacao, turma.qtd_cpf);
     for (int i = 0; i < turma.qtd_cpf; i++) {
         fprintf(f, "%s,%f", turma.cpf[i], turma.notas[i]);
-        if (i < (turma.qtd_cpf + 1)) fprintf(f, ",");
+        if (i != (turma.qtd_cpf - 1)) fprintf(f, ",");
     }
 
     fprintf(f, "\n");
@@ -468,14 +468,12 @@ Turma *popular_turmas(int qtd_cads, char *onde) {
         extrair_item(f, buff);
         int qtd_disc = atoi(buff);
 
-        turmas[i].cpf = malloc(qtd_disc);
         turmas[i].notas = malloc(sizeof(float) * qtd_disc);
+        turmas[i].cpf = malloc(qtd_disc);
 
         for (int j = 0; j < qtd_disc; ++j) {
             extrair_item(f, buff);
-
             turmas[i].cpf[j] = malloc(sizeof(char) * strlen(buff));
-
             strcpy(turmas[i].cpf[j], buff);
 
             extrair_item(f, buff);
@@ -485,6 +483,7 @@ Turma *popular_turmas(int qtd_cads, char *onde) {
         turmas[i].qtd_cpf = qtd_disc;
     }
 
+    fclose(f);
 
     return turmas;
 }
