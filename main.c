@@ -192,7 +192,7 @@ void remover_discente(char *onde) {
 
     printf("+--------------------------------+\n");
     for (int i = 0; i < qtd_cads; ++i) {
-        printf("│ %d │ %s\n", i, discentes[i].nome);
+        printf("│ %d │ %s\n", i + 1, discentes[i].nome);
     }
     printf("+--------------------------------+\n");
 
@@ -204,7 +204,7 @@ void remover_discente(char *onde) {
 
 
     for (int k = 0; k < qtd_cads; ++k) {
-        if (strcmp(discentes[k].nome, discentes[atoi(buff)].nome) == 0) continue;
+        if (strcmp(discentes[k].nome, discentes[atoi(buff) - 1].nome) == 0) continue;
         salvar_discente("tmp.csv", discentes[k]);
     }
 
