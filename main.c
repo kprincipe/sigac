@@ -216,6 +216,7 @@ void pesquisar_discente(char *onde) {
     char buff[TAM_MAX];
     char busca[TAM_MAX];
     int qtd_cads = contar_cadastros(onde);
+
     Discente *discentes = popular_discentes(qtd_cads, onde);
 
     printf("> ");
@@ -230,8 +231,6 @@ void pesquisar_discente(char *onde) {
             imprimir_discente(discentes[i]);
         }
     }
-
-    getchar();
 }
 
 void salvar_curso(char *onde, Curso curso) {
@@ -342,7 +341,7 @@ void salvar_turma(char *onde, Turma turma, Discente *discentes_adicionados[], in
     fprintf(f, "%d,%d,%d,%d,%d,", turma.numero, turma.codigo, turma.ano, turma.horas_participacao, qtd_disc);
     for (int i = 0; i < qtd_disc; i++) {
         fprintf(f, "%s,%f", discentes_adicionados[i]->cpf, turma.notas[i]);
-        if (i < qtd_disc) fprintf(f, ",");
+        if (i < (qtd_disc + 1)) fprintf(f, ",");
     }
 
     fprintf(f, "\n");
@@ -494,15 +493,16 @@ void exibir_turmas(char *onde[]) {
     }
 }
 
-void remover_turma(char *onde) {
-    int qtd_cads = contar_cadastros(onde);
+// TODO: nao implementado
+void remover_turma(char *onde[]) {
+    int qtd_cads = contar_cadastros(onde[ARQ_TURMAS]);
     char buff[TAM_MAX];
 
-    Turma *turmas = popular_turmas(qtd_cads, onde);
+    Turma *turmas = popular_turmas(qtd_cads, onde[ARQ_TURMAS]);
 
     printf("+--------------------------------+\n");
     for (int i = 0; i < qtd_cads; ++i) {
-        printf("│ %d │ %d\n", i, turmas[i].numero);
+        printf("│ %d │ %d\n", i, turmas[i].codigo);
     }
     printf("+--------------------------------+\n");
 
@@ -512,12 +512,7 @@ void remover_turma(char *onde) {
     fgets(buff, TAM_MAX, stdin);
     cortar_nl(buff);
 
-    for (int k = 0; k < qtd_cads; ++k) {
-        if (turmas[k].codigo == turmas[atoi(buff)].codigo) continue;
-        //salvar_turma("tmp.csv", turmas[k]);
-    }
-
-    rename("tmp.csv", onde);
+    rename("tmp.csv", onde[ARQ_TURMAS]);
 }
 
 int main(void) {
@@ -557,7 +552,6 @@ int main(void) {
                 printf("----: discentes :----\n\n");
                 printf("1. cadastrar discente\n");
                 printf("2. remover discente\n");
-                printf("x. editar discente\n");
 
                 printf("\n> ");
 
@@ -578,7 +572,6 @@ int main(void) {
                 printf("----: cursos :----\n\n");
                 printf("1. cadastrar curso\n");
                 printf("2. remover curso\n");
-                printf("x. editar curso\n");
 
                 printf("\n> ");
 
@@ -600,8 +593,6 @@ int main(void) {
                 limpar_tela();
                 printf("----: turmas :----\n\n");
                 printf("1. cadastrar turma\n");
-                printf("2. remover turma\n");
-                printf("x. editar turma\n");
                 printf("\n> ");
 
                 fgets(op, 8, stdin);
@@ -610,10 +601,6 @@ int main(void) {
                     limpar_tela();
                     printf("----: cadastrar turma :----\n\n");
                     cadastrar_turma(arquivos);
-                } else if (*op == '2') {
-                    limpar_tela();
-                    printf("----: remover turma :----\n\n");
-                    remover_turma(arquivos[ARQ_TURMAS]);
                 }
 
                 menu = PRINCIPAL;
@@ -631,10 +618,23 @@ int main(void) {
                     case '1':
                         limpar_tela();
                         printf("----: listagem discentes :----\n\n");
-                        exibir_discentes(arquivos[ARQ_DISCENTES]);
-                        //printf("----: pesquisar discente :----\n");
-                        //pesquisar_discente(arquivos[ARQ_DISCENTES]);
-                        getchar();
+                        printf("1. lista completa\n");
+                        printf("2. pesquisar\n");
+                        printf("\n> ");
+
+                        fgets(op, 8, stdin);
+
+                        if (*op == '1') {
+                            limpar_tela();
+                            printf("----: listagem discentes :----\n");
+                            exibir_discentes(arquivos[ARQ_DISCENTES]);
+                            getchar();
+                        } else if (*op == '2') {
+                            limpar_tela();
+                            printf("----: pesquisar discente :----\n");
+                            pesquisar_discente(arquivos[ARQ_DISCENTES]);
+                            getchar();
+                        }
                         break;
                     case '2':
                         limpar_tela();
@@ -646,7 +646,7 @@ int main(void) {
                         limpar_tela();
                         printf("----: listagem turmas :----\n\n");
                         printf("1. todas as turmas\n");
-                        printf("2. por desempenho\n");
+                        //printf("2. por desempenho\n");
                         printf("x. relatorio detalhado\n");
 
                         fgets(op, 8, stdin);
