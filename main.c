@@ -46,12 +46,14 @@ typedef struct {
     int codigo;
     int ano;
     float *notas;
-    int horas_participacao;
+    int *horas_participacao;
+    int codigo_curso;
     int qtd_cpf;
     char **cpf;
 } Turma;
 
 Discente *popular_discentes(int qtd_cads, char *onde);
+Curso *popular_cursos(int qtd_cads, char *onde);
 int contar_cadastros(char *onde);
 
 void cortar_nl(char *s) {
@@ -81,16 +83,30 @@ void imprimir_curso(Curso curso) {
 void imprimir_turma(Turma turma, char *onde[]) {
     int qtd_cads = contar_cadastros(onde[ARQ_DISCENTES]);
     Discente *discentes = popular_discentes(qtd_cads, onde[ARQ_DISCENTES]);
+    int qtd_cursos = contar_cadastros(onde[ARQ_CURSOS]);
+    Curso *cursos = popular_cursos(qtd_cursos, onde[ARQ_CURSOS]);
 
     printf("+------------------------------------------------+\n");
-    printf("│ n° turma       │ %d\n", turma.numero);
+    printf("│      n° turma: %d\n", turma.numero);
+    printf("│         curso: ");
+
+    for (int i = 0; i < qtd_cursos; ++i) {
+        if (turma.codigo_curso == cursos[i].codigo) {
+            printf("%s - %d\n", cursos[i].nome, turma.codigo_curso);
+        }
+    }
+
     printf("│------------------------------------------------+\n");
+    printf("│ participantes: \n");
+    printf("│\n");
     for (int i = 0; i < turma.qtd_cpf; ++i) {
         for (int j = 0; j < qtd_cads; ++j) {
             if (strcmp(turma.cpf[i], discentes[j].cpf) == 0) {
-                printf("│ %s │ %s\n", turma.cpf[i], discentes[j].nome);
-                printf("│ %*.c │ %.2f\n", (int)strlen(turma.cpf[i]), ' ', turma.notas[i]);
-                printf("│ %*.c │\n", (int)strlen(turma.cpf[i]), ' ');
+                printf("│          nome: %s\n", discentes[j].nome);
+                printf("│           cpf: %s\n", turma.cpf[i]);
+                printf("│         media: %.2f\n", turma.notas[i]);
+                printf("│  participacao: %d h\n", turma.horas_participacao[i]);
+                printf("│\n");
             }
         }
     }
@@ -338,9 +354,9 @@ void remover_curso(char *onde) {
 void salvar_turma(char *onde, Turma turma) {
     FILE *f = fopen(onde, "a");
 
-    fprintf(f, "%d,%d,%d,%d,%d,", turma.numero, turma.codigo, turma.ano, turma.horas_participacao, turma.qtd_cpf);
+    fprintf(f, "%d,%d,%d,%d,%d,", turma.numero, turma.codigo, turma.ano, turma.qtd_cpf, turma.codigo_curso);
     for (int i = 0; i < turma.qtd_cpf; i++) {
-        fprintf(f, "%s,%f", turma.cpf[i], turma.notas[i]);
+        fprintf(f, "%s,%f,%d", turma.cpf[i], turma.notas[i], turma.horas_participacao[i]);
         if (i != (turma.qtd_cpf - 1)) fprintf(f, ",");
     }
 
@@ -367,17 +383,15 @@ void cadastrar_turma(char *onde[]) {
     fgets(buff, TAM_MAX, stdin);
     cortar_nl(buff);
     turma.ano = atoi(buff);
-
-    printf("horas de participacao: ");
-    fgets(buff, TAM_MAX, stdin);
-    cortar_nl(buff);
-    turma.horas_participacao = atoi(buff);
     
     int qtd_disc = 0;
     int qtd_cads = contar_cadastros(onde[ARQ_DISCENTES]);
     Discente *discentes = popular_discentes(qtd_cads, onde[ARQ_DISCENTES]);
 
-    static char *cpfs_adicionados[TAM_MAX];
+    int qtd_cursos = contar_cadastros(onde[ARQ_CURSOS]);
+    Curso *cursos = popular_cursos(qtd_cursos, onde[ARQ_CURSOS]);
+
+    char *cpfs_adicionados[TAM_MAX];
 
     for (;;) {
         limpar_tela();
@@ -399,8 +413,12 @@ void cadastrar_turma(char *onde[]) {
 
         if (qtd_disc == 0) printf("nenhum discente adicionado!!\n\n");
 
-        for (int k = 0; k < qtd_disc; ++k) {
-            printf("+ %s\n", cpfs_adicionados[k]);
+        for (int i = 0; i < qtd_cads; ++i) {
+            for (int k = 0; k < qtd_disc; ++k) {
+                if (strcmp(cpfs_adicionados[k], discentes[i].cpf) == 0) {
+                    printf("+ %s (%s)\n", cpfs_adicionados[k], discentes[i].nome);
+                }
+            }
         }
 
         printf("\n");
@@ -420,15 +438,43 @@ void cadastrar_turma(char *onde[]) {
             }
         }
     }
+
+    for (;;) {
+        limpar_tela();
+        printf("----: selecionar curso :----\n\n");
+
+        for (int i = 0; i < qtd_cursos; ++i) {
+            printf("%d. %s\n", i, cursos[i].nome);
+        }
+
+        printf("\n");
+        printf("digite o numero do curso:\n");
+        printf("> ");
+        fgets(buff, TAM_MAX, stdin);
+        cortar_nl(buff);
+        
+        if (atoi(buff) > 0 && atoi(buff) <= qtd_cursos) {
+            turma.codigo_curso = cursos[atoi(buff) - 1].codigo;
+            break;
+        }
+    }
+
     turma.cpf = cpfs_adicionados;
     turma.qtd_cpf = qtd_disc;
+
     turma.notas = malloc(sizeof(float) * qtd_disc);
+    turma.horas_participacao = malloc(sizeof(int) * qtd_disc);
 
     for (int k = 0; k < qtd_disc; ++k) {
         limpar_tela();
         printf("----: registrar notas :----\n\n");
+        
+        for (int i = 0; i < qtd_cads; ++i) {
+            if (strcmp(discentes[i].cpf, cpfs_adicionados[k]) == 0) {
+                printf("+ %s (%s)\n\n", cpfs_adicionados[k], discentes[i].nome);
+            }
+        }
 
-        printf("+ %s\n\n", cpfs_adicionados[k]);
         printf("digite nota do discente:\n");
         printf("> ");
 
@@ -436,6 +482,11 @@ void cadastrar_turma(char *onde[]) {
         cortar_nl(buff);
         turma.notas[k] = atof(buff);
 
+        printf("horas de participacao:\n");
+        printf("> ");
+        fgets(buff, TAM_MAX, stdin);
+        cortar_nl(buff);
+        turma.horas_participacao[k] = atoi(buff);
     }
 
     salvar_turma(onde[ARQ_TURMAS], turma);
@@ -463,13 +514,14 @@ Turma *popular_turmas(int qtd_cads, char *onde) {
         turmas[i].ano = atoi(buff);
 
         extrair_item(f, buff);
-        turmas[i].horas_participacao = atoi(buff);
+        int qtd_disc = atoi(buff);
 
         extrair_item(f, buff);
-        int qtd_disc = atoi(buff);
+        turmas[i].codigo_curso = atoi(buff);
 
         turmas[i].notas = malloc(sizeof(float) * qtd_disc);
         turmas[i].cpf = malloc(qtd_disc);
+        turmas[i].horas_participacao = malloc(qtd_disc);
 
         for (int j = 0; j < qtd_disc; ++j) {
             extrair_item(f, buff);
@@ -478,6 +530,9 @@ Turma *popular_turmas(int qtd_cads, char *onde) {
 
             extrair_item(f, buff);
             turmas[i].notas[j] = atof(buff);
+
+            extrair_item(f, buff);
+            turmas[i].horas_participacao[j] = atoi(buff);
         }
 
         turmas[i].qtd_cpf = qtd_disc;
