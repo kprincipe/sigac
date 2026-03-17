@@ -673,11 +673,7 @@ int main(void) {
 
                 menu = PRINCIPAL;
                 break;
-            case SAIR:
-                    printf("tchauu!\n");
-                    getchar();
-                    return 0;
-                break;
+            case SAIR: return 0;
             default:
                 printf("----: erro :----\n");
                 printf("opção inválida!!\n");
