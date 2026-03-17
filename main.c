@@ -64,19 +64,19 @@ void cortar_nl(char *s) {
 
 void imprimir_discente(Discente discente) {
     printf("+--------------------------------+\n");
-    printf("│ Nome  │ %s\n", discente.nome);
-    printf("│ CPF   │ %s\n", discente.cpf);
-    printf("│ Idade │ %d\n", discente.idade);
+    printf("│  nome: %s\n", discente.nome);
+    printf("│   cpf: %s\n", discente.cpf);
+    printf("│ idade: %d\n", discente.idade);
     printf("+--------------------------------+\n\n");
 }
 
 void imprimir_curso(Curso curso) {
     printf("+--------------------------------+\n");
-    printf("│ Nome     │ %s\n", curso.nome);
-    printf("│ Codigo   │ %d\n", curso.codigo);
-    printf("│ Horas    │ %d h\n", curso.horas);
-    printf("│ Vagas    │ %d\n", curso.vagas);
-    printf("│ N° Part. │ %d\n", curso.numero_participantes);
+    printf("│     nome: %s\n", curso.nome);
+    printf("│   codigo: %d\n", curso.codigo);
+    printf("│    horas: %d h\n", curso.horas);
+    printf("│    vagas: %d\n", curso.vagas);
+    printf("│ n° part.: %d\n", curso.numero_participantes);
     printf("+--------------------------------+\n\n");
 }
 
@@ -111,6 +111,9 @@ void imprimir_turma(Turma turma, char *onde[]) {
         }
     }
     printf("+------------------------------------------------+\n\n");
+
+    free(cursos);
+    free(discentes);
 }
 
 int contar_cadastros(char *onde) {
@@ -333,7 +336,7 @@ void remover_curso(char *onde) {
 
     printf("+--------------------------------+\n");
     for (int i = 0; i < qtd_cads; ++i) {
-        printf("│ %d │ %s\n", i, cursos[i].nome);
+        printf("│ %d │ %s\n", i + 1, cursos[i].nome);
     }
     printf("+--------------------------------+\n");
 
@@ -344,7 +347,7 @@ void remover_curso(char *onde) {
     cortar_nl(buff);
 
     for (int k = 0; k < qtd_cads; ++k) {
-        if (strcmp(cursos[k].nome, cursos[atoi(buff)].nome) == 0) continue;
+        if (strcmp(cursos[k].nome, cursos[atoi(buff) - 1].nome) == 0) continue;
         salvar_curso("tmp.csv", cursos[k]);
     }
 
@@ -554,15 +557,21 @@ void exibir_turmas(char *onde[]) {
 
 void remover_turma(char *onde[]) {
     int qtd_cads = contar_cadastros(onde[ARQ_TURMAS]);
+    int qtd_cursos = contar_cadastros(onde[ARQ_CURSOS]);
     char buff[TAM_MAX];
 
     Turma *turmas = popular_turmas(qtd_cads, onde[ARQ_TURMAS]);
+    Curso *cursos = popular_cursos(qtd_cursos, onde[ARQ_CURSOS]);
 
-    printf("+--------------------------------+\n");
+    printf("+----------------------------------------+\n");
     for (int i = 0; i < qtd_cads; ++i) {
-        printf("│ %d │ %d\n", i, turmas[i].codigo);
+        for (int j = 0; j < qtd_cursos; ++j) {
+            if (turmas[i].codigo_curso == cursos[j].codigo) {
+                printf("│ %d │ %d - %s\n", i + 1, turmas[i].codigo, cursos[j].nome);
+            }
+        }
     }
-    printf("+--------------------------------+\n");
+    printf("+----------------------------------------+\n");
 
     printf("Digite o numero identificador da turma:\n");
     printf("> ");
@@ -571,7 +580,7 @@ void remover_turma(char *onde[]) {
     cortar_nl(buff);
 
     for (int k = 0; k < qtd_cads; ++k) {
-        if (turmas[k].codigo == turmas[atoi(buff)].codigo) continue;
+        if (turmas[k].codigo == turmas[atoi(buff) - 1].codigo) continue;
         salvar_turma("tmp.csv", turmas[k]);
     }
     rename("tmp.csv", onde[ARQ_TURMAS]);
