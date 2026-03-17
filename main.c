@@ -335,13 +335,13 @@ void remover_curso(char *onde) {
     rename("tmp.csv", onde);
 }
 
-void salvar_turma(char *onde, Turma turma, Discente *discentes_adicionados[], int qtd_disc) {
+void salvar_turma(char *onde, Turma turma) {
     FILE *f = fopen(onde, "a");
 
-    fprintf(f, "%d,%d,%d,%d,%d,", turma.numero, turma.codigo, turma.ano, turma.horas_participacao, qtd_disc);
-    for (int i = 0; i < qtd_disc; i++) {
-        fprintf(f, "%s,%f", discentes_adicionados[i]->cpf, turma.notas[i]);
-        if (i < (qtd_disc + 1)) fprintf(f, ",");
+    fprintf(f, "%d,%d,%d,%d,%d,", turma.numero, turma.codigo, turma.ano, turma.horas_participacao, turma.qtd_cpf);
+    for (int i = 0; i < turma.qtd_cpf; i++) {
+        fprintf(f, "%s,%f", turma.cpf[i], turma.notas[i]);
+        if (i < (turma.qtd_cpf + 1)) fprintf(f, ",");
     }
 
     fprintf(f, "\n");
@@ -375,8 +375,9 @@ void cadastrar_turma(char *onde[]) {
     
     int qtd_disc = 0;
     int qtd_cads = contar_cadastros(onde[ARQ_DISCENTES]);
-    Discente *discentes_adicionados[TAM_MAX];
     Discente *discentes = popular_discentes(qtd_cads, onde[ARQ_DISCENTES]);
+
+    static char *cpfs_adicionados[TAM_MAX];
 
     for (;;) {
         limpar_tela();
@@ -384,7 +385,7 @@ void cadastrar_turma(char *onde[]) {
         for (int i = 0; i < qtd_cads; ++i) {
             int adicionado = 0;
             for (int j = 0; j < qtd_disc; ++j) {
-                if (strcmp(discentes[i].cpf, discentes_adicionados[j]->cpf) == 0) {
+                if (strcmp(discentes[i].cpf, cpfs_adicionados[j]) == 0) {
                     adicionado = 1;
                 }
             }
@@ -399,8 +400,9 @@ void cadastrar_turma(char *onde[]) {
         if (qtd_disc == 0) printf("nenhum discente adicionado!!\n\n");
 
         for (int k = 0; k < qtd_disc; ++k) {
-            printf("+ %s (%s)\n", discentes_adicionados[k]->cpf, discentes_adicionados[k]->nome);
+            printf("+ %s\n", cpfs_adicionados[k]);
         }
+
         printf("\n");
         printf("digite cpf do discente para adicionar a turma (q para finalizar):\n");
         printf("> ");
@@ -412,18 +414,21 @@ void cadastrar_turma(char *onde[]) {
         
         for (int i = 0; i < qtd_cads; ++i) {
             if (strcmp(discentes[i].cpf, buff) == 0) {
-                discentes_adicionados[qtd_disc++] = &discentes[i];
+                cpfs_adicionados[qtd_disc] = malloc(strlen(buff));
+                strcpy(cpfs_adicionados[qtd_disc], buff);
+                qtd_disc++;
             }
         }
     }
-
+    turma.cpf = cpfs_adicionados;
+    turma.qtd_cpf = qtd_disc;
     turma.notas = malloc(sizeof(float) * qtd_disc);
 
     for (int k = 0; k < qtd_disc; ++k) {
         limpar_tela();
         printf("----: registrar notas :----\n\n");
 
-        printf("+ %s (%s)\n\n", discentes_adicionados[k]->nome, discentes_adicionados[k]->cpf);
+        printf("+ %s\n\n", cpfs_adicionados[k]);
         printf("digite nota do discente:\n");
         printf("> ");
 
@@ -433,7 +438,7 @@ void cadastrar_turma(char *onde[]) {
 
     }
 
-    salvar_turma(onde[ARQ_TURMAS], turma, discentes_adicionados, qtd_disc);
+    salvar_turma(onde[ARQ_TURMAS], turma);
 }
 
 Turma *popular_turmas(int qtd_cads, char *onde) {
@@ -493,7 +498,6 @@ void exibir_turmas(char *onde[]) {
     }
 }
 
-// TODO: nao implementado
 void remover_turma(char *onde[]) {
     int qtd_cads = contar_cadastros(onde[ARQ_TURMAS]);
     char buff[TAM_MAX];
@@ -512,6 +516,10 @@ void remover_turma(char *onde[]) {
     fgets(buff, TAM_MAX, stdin);
     cortar_nl(buff);
 
+    for (int k = 0; k < qtd_cads; ++k) {
+        if (turmas[k].codigo == turmas[atoi(buff)].codigo) continue;
+        salvar_turma("tmp.csv", turmas[k]);
+    }
     rename("tmp.csv", onde[ARQ_TURMAS]);
 }
 
@@ -593,6 +601,7 @@ int main(void) {
                 limpar_tela();
                 printf("----: turmas :----\n\n");
                 printf("1. cadastrar turma\n");
+                printf("2. remover turma\n");
                 printf("\n> ");
 
                 fgets(op, 8, stdin);
@@ -601,6 +610,10 @@ int main(void) {
                     limpar_tela();
                     printf("----: cadastrar turma :----\n\n");
                     cadastrar_turma(arquivos);
+                } else if (*op == '2') {
+                    limpar_tela();
+                    printf("----: remover turma :----\n\n");
+                    remover_turma(arquivos);
                 }
 
                 menu = PRINCIPAL;
