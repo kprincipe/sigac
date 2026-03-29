@@ -1,13 +1,14 @@
 #include <stdio.h>
-#include <assert.h>
 #include <string.h>
 #include <stdlib.h>
 
 #ifdef _WIN32
-#define limpar_tela() system("cls")
+#define LIMPAR_TELA() system("cls")
 #else
-#define limpar_tela() system("clear")
+#define LIMPAR_TELA() system("clear")
 #endif
+
+#define CABECALHO() printf("-- sistema TopArtBare --\n\n")
 
 #define TAM_MAX 256
 
@@ -21,40 +22,68 @@ typedef enum {
     SAIR
 } Menus;
 
-typedef enum {
-    ARQ_DISCENTES = 0,
+enum {
     ARQ_CURSOS,
+    ARQ_DISCENTES,
     ARQ_TURMAS
-} Arquivos;
+};
 
+// discentes (cpf, nome, idade)
 typedef struct {
-    char nome[TAM_MAX];
     char cpf[TAM_MAX];
+    char nome[TAM_MAX];
     int idade;
 } Discente;
 
+// cursos (código, nome, horas, número de vagas, número de participantes)
 typedef struct {
+    char nome[TAM_MAX];
     int codigo;
     int horas;
-    int vagas;
+    int numero_vagas;
     int numero_participantes;
-    char nome[TAM_MAX];
 } Curso;
 
+// turmas (número, cpf, código, ano, nota, horas de participação)
 typedef struct {
+    char cpf[TAM_MAX];
     int numero;
-    int codigo;
+    char codigo[TAM_MAX];
     int ano;
-    float *notas;
-    int *horas_participacao;
-    int codigo_curso;
-    int qtd_cpf;
-    char **cpf;
+    float nota;
+    float horas_participacao;
 } Turma;
 
-Discente *popular_discentes(int qtd_cads, char *onde);
-Curso *popular_cursos(int qtd_cads, char *onde);
+// funcao que elimina caractere '\n' do final de uma string
+void cortar_nl(char *s);
+
+// contar quantidade de linhas (cadastros) existentes em arquivo
 int contar_cadastros(char *onde);
+int contar_cadastros(char *onde);
+void extrair_item(FILE *f, char *dst);
+
+void cadastrar_curso(char *arquivo);
+int popular_cursos(Curso *cursos, char *arquivo);
+void mostrar_cursos(Curso *cursos, int qtd_cursos);
+void remover_curso(char *arquivo);
+void editar_curso(char *arquivo);
+void salvar_curso(Curso curso, char *arquivo); // salva dados de curso em um arquivo
+
+void cadastrar_discente(char *arquivo);
+int popular_discentes(Discente *discentes, char *arquivo);
+void mostrar_discentes(Discente *discentes, int qtd_discentes);
+void mostrar_discente(Discente discente);
+void remover_discente(char *arquivo);
+void editar_discente(char *arquivo);
+void salvar_discente(Discente discente, char *arquivo); // salva dados de discente em um arquivo
+void pesquisar_discente(char *arquivo);
+
+void cadastrar_turma(char **arquivos);
+int popular_turmas(Turma *turmas, char *arquivo);
+void mostrar_turmas(Turma *turmas, int qtd_turmas);
+void remover_turma(char *arquivo);
+void editar_turma(char *arquivo);
+void salvar_turma(Turma turma, char *arquivo); // salva dados de turma em um arquivo
 
 void cortar_nl(char *s) {
     int i = 0;
@@ -62,64 +91,10 @@ void cortar_nl(char *s) {
     s[i - 1] = '\0';
 }
 
-void imprimir_discente(Discente discente) {
-    printf("+--------------------------------+\n");
-    printf("│  nome: %s\n", discente.nome);
-    printf("│   cpf: %s\n", discente.cpf);
-    printf("│ idade: %d\n", discente.idade);
-    printf("+--------------------------------+\n\n");
-}
-
-void imprimir_curso(Curso curso) {
-    printf("+--------------------------------+\n");
-    printf("│     nome: %s\n", curso.nome);
-    printf("│   codigo: %d\n", curso.codigo);
-    printf("│    horas: %d h\n", curso.horas);
-    printf("│    vagas: %d\n", curso.vagas);
-    printf("│ n° part.: %d\n", curso.numero_participantes);
-    printf("+--------------------------------+\n\n");
-}
-
-void imprimir_turma(Turma turma, char *onde[]) {
-    int qtd_cads = contar_cadastros(onde[ARQ_DISCENTES]);
-    Discente *discentes = popular_discentes(qtd_cads, onde[ARQ_DISCENTES]);
-    int qtd_cursos = contar_cadastros(onde[ARQ_CURSOS]);
-    Curso *cursos = popular_cursos(qtd_cursos, onde[ARQ_CURSOS]);
-
-    printf("+------------------------------------------------+\n");
-    printf("│      n° turma: %d\n", turma.numero);
-    printf("│         curso: ");
-
-    for (int i = 0; i < qtd_cursos; ++i) {
-        if (turma.codigo_curso == cursos[i].codigo) {
-            printf("%s - %d\n", cursos[i].nome, turma.codigo_curso);
-        }
-    }
-
-    printf("│------------------------------------------------+\n");
-    printf("│ participantes: \n");
-    printf("│\n");
-    for (int i = 0; i < turma.qtd_cpf; ++i) {
-        for (int j = 0; j < qtd_cads; ++j) {
-            if (strcmp(turma.cpf[i], discentes[j].cpf) == 0) {
-                printf("│          nome: %s\n", discentes[j].nome);
-                printf("│           cpf: %s\n", turma.cpf[i]);
-                printf("│         media: %.2f\n", turma.notas[i]);
-                printf("│  participacao: %d h\n", turma.horas_participacao[i]);
-                printf("│\n");
-            }
-        }
-    }
-    printf("+------------------------------------------------+\n\n");
-
-    free(cursos);
-    free(discentes);
-}
-
-int contar_cadastros(char *onde) {
+int contar_cadastros(char *arquivo) {
     int c = 0;
 
-    FILE *f = fopen(onde, "r");
+    FILE *f = fopen(arquivo, "r");
     if (f == NULL) return 0;
 
     while (!feof(f)) {
@@ -145,159 +120,19 @@ void extrair_item(FILE *f, char *dst) {
     }
 }
 
-Discente *popular_discentes(int qtd_cads, char *onde) {
-    Discente *discentes = malloc(sizeof(Discente) * qtd_cads);
+// le arquivo de cursos e popula vetor com as informacoes
+int popular_cursos(Curso *cursos, char *arquivo) {
+    FILE *f = fopen(arquivo, "r");
+
+    if (f == NULL) return 0;
+
+    int qtd_cads = contar_cadastros(arquivo);
     char buff[TAM_MAX];
 
-    FILE *f = fopen(onde, "r");
-    if (f == NULL) {
-        fprintf(stderr, "popular_discentes(): erro: nao foi possivel abrir arquivo: %s\n", onde);
-        exit(1);
-    };
-
-    for (int i = 0; i < qtd_cads; ++i) {
-        extrair_item(f, buff);
-        strcpy(discentes[i].nome, buff);
-
-        extrair_item(f, buff);
-        strcpy(discentes[i].cpf, buff);
-
-        extrair_item(f, buff);
-        discentes[i].idade = atoi(buff);
+    if (qtd_cads == 0) {
+        fclose(f);
+        return 0;
     }
-
-    return discentes;
-}
-
-void exibir_discentes(char *onde) {
-    int qtd_cads = contar_cadastros(onde);
-    Discente *discentes = popular_discentes(qtd_cads, onde);
-
-    for (int i = 0; i < qtd_cads; ++i) {
-        imprimir_discente(discentes[i]);
-    }
-}
-
-void salvar_discente(char *onde, Discente discente) {
-    FILE *f = fopen(onde, "a");
-    fprintf(f, "%s,%s,%d\n", discente.nome, discente.cpf, discente.idade);
-    fclose(f);
-}
-
-void remover_discente(char *onde) {
-    int qtd_cads = contar_cadastros(onde);
-    char buff[TAM_MAX];
-
-    Discente *discentes = popular_discentes(qtd_cads, onde);
-
-    printf("+--------------------------------+\n");
-    for (int i = 0; i < qtd_cads; ++i) {
-        printf("│ %d │ %s\n", i + 1, discentes[i].nome);
-    }
-    printf("+--------------------------------+\n");
-
-    printf("Digite o numero identificador do discente:\n");
-    printf("> ");
-
-    fgets(buff, TAM_MAX, stdin);
-    cortar_nl(buff);
-
-
-    for (int k = 0; k < qtd_cads; ++k) {
-        if (strcmp(discentes[k].nome, discentes[atoi(buff) - 1].nome) == 0) continue;
-        salvar_discente("tmp.csv", discentes[k]);
-    }
-
-    rename("tmp.csv", onde);
-}
-
-void cadastrar_discente(char *onde) {
-    Discente discente = {0};
-    char buff[TAM_MAX];
-
-    printf("Nome: ");
-    fgets(discente.nome, TAM_MAX, stdin);
-    cortar_nl(discente.nome);
-
-    printf("CPF: ");
-    fgets(discente.cpf, TAM_MAX, stdin);
-    cortar_nl(discente.cpf);
-
-    printf("Idade: ");
-    fgets(buff, TAM_MAX, stdin);
-    cortar_nl(buff);
-    discente.idade = atoi(buff);
-
-    salvar_discente(onde, discente);
-}
-
-void pesquisar_discente(char *onde) {
-    char buff[TAM_MAX];
-    char busca[TAM_MAX];
-    int qtd_cads = contar_cadastros(onde);
-
-    Discente *discentes = popular_discentes(qtd_cads, onde);
-
-    printf("> ");
-    fgets(busca, TAM_MAX, stdin);
-    cortar_nl(busca);
-    limpar_tela();
-
-    printf("----: pesquisar discente :----\n\n");
-    for (int i = 0; i < qtd_cads; ++i) {
-        strncpy(buff, discentes[i].nome, strlen(busca));
-        if (strcmp(busca, buff) == 0) {
-            imprimir_discente(discentes[i]);
-        }
-    }
-}
-
-void salvar_curso(char *onde, Curso curso) {
-    FILE *f = fopen(onde, "a");
-    fprintf(f, "%s,%d,%d,%d,%d\n", curso.nome, curso.codigo, curso.horas, curso.vagas, curso.numero_participantes);
-    fclose(f);
-}
-
-void cadastrar_curso(char *onde) {
-    Curso curso = {0};
-    char buff[TAM_MAX];
-
-    printf("Nome: ");
-    fgets(curso.nome, TAM_MAX, stdin);
-    cortar_nl(curso.nome);
-
-    printf("Codigo: ");
-    fgets(buff, TAM_MAX, stdin);
-    cortar_nl(buff);
-    curso.codigo = atoi(buff);
-
-    printf("Horas: ");
-    fgets(buff, TAM_MAX, stdin);
-    cortar_nl(buff);
-    curso.horas = atoi(buff);
-
-    printf("Vagas: ");
-    fgets(buff, TAM_MAX, stdin);
-    cortar_nl(buff);
-    curso.vagas = atoi(buff);
-
-    printf("Numero de Participantes: ");
-    fgets(buff, TAM_MAX, stdin);
-    cortar_nl(buff);
-    curso.numero_participantes = atoi(buff);
-
-    salvar_curso(onde, curso);
-}
-
-Curso *popular_cursos(int qtd_cads, char *onde) {
-    Curso *cursos = malloc(sizeof(Curso) * qtd_cads);
-    char buff[TAM_MAX];
-
-    FILE *f = fopen(onde, "r");
-    if (f == NULL) {
-        fprintf(stderr, "popular_cursos(): erro: nao foi possivel abrir arquivo: %s\n", onde);
-        exit(1);
-    };
 
     for (int i = 0; i < qtd_cads; ++i) {
         extrair_item(f, buff);
@@ -310,454 +145,654 @@ Curso *popular_cursos(int qtd_cads, char *onde) {
         cursos[i].horas = atoi(buff);
 
         extrair_item(f, buff);
-        cursos[i].vagas = atoi(buff);
+        cursos[i].numero_vagas = atoi(buff);
 
         extrair_item(f, buff);
         cursos[i].numero_participantes = atoi(buff);
-    }
-
-    return cursos;
+    }  
 }
 
-void exibir_cursos(char *onde) {
-    int qtd_cads = contar_cadastros(onde);
-    Curso *cursos = popular_cursos(qtd_cads, onde);
+// coleta dados de curso do usuario
+void cadastrar_curso(char *arquivo) {
+    Curso curso = {0};
 
-    for (int i = 0; i < qtd_cads; ++i) {
-        imprimir_curso(cursos[i]);
-    }
-}
-
-void remover_curso(char *onde) {
-    int qtd_cads = contar_cadastros(onde);
-    char buff[TAM_MAX];
-
-    Curso *cursos = popular_cursos(qtd_cads, onde);
-
-    printf("+--------------------------------+\n");
-    for (int i = 0; i < qtd_cads; ++i) {
-        printf("│ %d │ %s\n", i + 1, cursos[i].nome);
-    }
-    printf("+--------------------------------+\n");
-
-    printf("Digite o numero identificador do curso:\n");
-    printf("> ");
-
-    fgets(buff, TAM_MAX, stdin);
-    cortar_nl(buff);
-
-    for (int k = 0; k < qtd_cads; ++k) {
-        if (strcmp(cursos[k].nome, cursos[atoi(buff) - 1].nome) == 0) continue;
-        salvar_curso("tmp.csv", cursos[k]);
-    }
-
-    rename("tmp.csv", onde);
-}
-
-void salvar_turma(char *onde, Turma turma) {
-    FILE *f = fopen(onde, "a");
-
-    fprintf(f, "%d,%d,%d,%d,%d,", turma.numero, turma.codigo, turma.ano, turma.qtd_cpf, turma.codigo_curso);
-    for (int i = 0; i < turma.qtd_cpf; i++) {
-        fprintf(f, "%s,%f,%d", turma.cpf[i], turma.notas[i], turma.horas_participacao[i]);
-        if (i != (turma.qtd_cpf - 1)) fprintf(f, ",");
-    }
-
-    fprintf(f, "\n");
-
-    fclose(f);
-}
-
-void cadastrar_turma(char *onde[]) {
-    Turma turma = {0};
     char buff[TAM_MAX];
     
-    printf("numero: ");
-    fgets(buff, TAM_MAX, stdin);
-    cortar_nl(buff);
-    turma.numero = atoi(buff);
+    printf("nome: ");
+    fgets(curso.nome, TAM_MAX, stdin);
+    cortar_nl(curso.nome);
 
     printf("codigo: ");
     fgets(buff, TAM_MAX, stdin);
     cortar_nl(buff);
-    turma.codigo = atoi(buff);
+    curso.codigo = atoi(buff);
 
-    printf("ano: ");
+    printf("horas: ");
     fgets(buff, TAM_MAX, stdin);
     cortar_nl(buff);
-    turma.ano = atoi(buff);
-    
-    int qtd_disc = 0;
-    int qtd_cads = contar_cadastros(onde[ARQ_DISCENTES]);
-    Discente *discentes = popular_discentes(qtd_cads, onde[ARQ_DISCENTES]);
+    curso.horas = atoi(buff);
 
-    int qtd_cursos = contar_cadastros(onde[ARQ_CURSOS]);
-    Curso *cursos = popular_cursos(qtd_cursos, onde[ARQ_CURSOS]);
+    printf("numero de vagas: ");
+    fgets(buff, TAM_MAX, stdin);
+    cortar_nl(buff);
+    curso.numero_vagas = atoi(buff);
 
-    char *cpfs_adicionados[TAM_MAX];
-
-    for (;;) {
-        limpar_tela();
-        printf("----: adicionar discente :----\n\n");
-        for (int i = 0; i < qtd_cads; ++i) {
-            int adicionado = 0;
-            for (int j = 0; j < qtd_disc; ++j) {
-                if (strcmp(discentes[i].cpf, cpfs_adicionados[j]) == 0) {
-                    adicionado = 1;
-                }
-            }
-
-            if (!adicionado) {
-                printf("+ %s (%s)\n", discentes[i].cpf, discentes[i].nome);
-            }
-        }
-
-        printf("+---------: adicionados :---------+\n\n");
-
-        if (qtd_disc == 0) printf("nenhum discente adicionado!!\n\n");
-
-        for (int i = 0; i < qtd_cads; ++i) {
-            for (int k = 0; k < qtd_disc; ++k) {
-                if (strcmp(cpfs_adicionados[k], discentes[i].cpf) == 0) {
-                    printf("+ %s (%s)\n", cpfs_adicionados[k], discentes[i].nome);
-                }
-            }
-        }
-
-        printf("\n");
-        printf("digite cpf do discente para adicionar a turma (q para finalizar):\n");
-        printf("> ");
-        
-        fgets(buff, TAM_MAX, stdin);
-        cortar_nl(buff);
-
-        if (*buff == 'q') break;
-        
-        for (int i = 0; i < qtd_cads; ++i) {
-            if (strcmp(discentes[i].cpf, buff) == 0) {
-                cpfs_adicionados[qtd_disc] = malloc(strlen(buff));
-                strcpy(cpfs_adicionados[qtd_disc], buff);
-                qtd_disc++;
-            }
-        }
-    }
-
-    for (;;) {
-        limpar_tela();
-        printf("----: selecionar curso :----\n\n");
-
-        for (int i = 0; i < qtd_cursos; ++i) {
-            printf("%d. %s\n", i, cursos[i].nome);
-        }
-
-        printf("\n");
-        printf("digite o numero do curso:\n");
-        printf("> ");
-        fgets(buff, TAM_MAX, stdin);
-        cortar_nl(buff);
-        
-        if (atoi(buff) > 0 && atoi(buff) <= qtd_cursos) {
-            turma.codigo_curso = cursos[atoi(buff) - 1].codigo;
-            break;
-        }
-    }
-
-    turma.cpf = cpfs_adicionados;
-    turma.qtd_cpf = qtd_disc;
-
-    turma.notas = malloc(sizeof(float) * qtd_disc);
-    turma.horas_participacao = malloc(sizeof(int) * qtd_disc);
-
-    for (int k = 0; k < qtd_disc; ++k) {
-        limpar_tela();
-        printf("----: registrar notas :----\n\n");
-        
-        for (int i = 0; i < qtd_cads; ++i) {
-            if (strcmp(discentes[i].cpf, cpfs_adicionados[k]) == 0) {
-                printf("+ %s (%s)\n\n", cpfs_adicionados[k], discentes[i].nome);
-            }
-        }
-
-        printf("digite nota do discente:\n");
-        printf("> ");
-
-        fgets(buff, TAM_MAX, stdin);
-        cortar_nl(buff);
-        turma.notas[k] = atof(buff);
-
-        printf("horas de participacao:\n");
-        printf("> ");
-        fgets(buff, TAM_MAX, stdin);
-        cortar_nl(buff);
-        turma.horas_participacao[k] = atoi(buff);
-    }
-
-    salvar_turma(onde[ARQ_TURMAS], turma);
+    salvar_curso(curso, arquivo);
 }
 
-Turma *popular_turmas(int qtd_cads, char *onde) {
-    Turma *turmas = malloc(sizeof(Turma) * qtd_cads);
+void mostrar_cursos(Curso *cursos, int qtd_cursos) {
+    if (qtd_cursos > 0) {
+        for (int i = 0; i < qtd_cursos; ++i) {
+            printf("+ %s\n", cursos[i].nome);
+        }
+    } else {
+        printf("nenhum curso encontrado\n");
+    }
+}
+
+void remover_curso(char *arquivo) {
+    Curso cursos[TAM_MAX];
+    char buffer[TAM_MAX];
+
+    int qtd_cursos = popular_cursos(cursos, arquivo);
+
+    mostrar_cursos(cursos, qtd_cursos);
+
+    printf("\ninsira o numero curso para remover\n");
+    printf("> ");
+
+    fgets(buffer, TAM_MAX, stdin);
+    cortar_nl(buffer);
+    
+    for (int k = 0; k < qtd_cursos; ++k) {
+        if (atoi(buffer) == k) continue;
+        salvar_curso(cursos[k], "tmp.csv");
+    }
+
+    rename("tmp.csv", arquivo);
+}
+
+// TODO: fazer uma interface melhor para edicao individual dos campos
+void editar_curso(char *arquivo) {
+    Curso cursos[TAM_MAX];
+    char buffer[TAM_MAX];
+
+    int qtd_cursos = popular_cursos(cursos, arquivo);
+
+    printf("\ninsira o numero curso para editar\n");
+    printf("> ");
+
+    fgets(buffer, TAM_MAX, stdin);
+    cortar_nl(buffer);
+
+    LIMPAR_TELA();
+    
+    for (int k = 0; k < qtd_cursos; ++k) {
+        if (k == atoi(buffer)) {
+            cadastrar_curso("tmp.csv");
+        } else {
+            salvar_curso(cursos[k], "tmp.csv");
+        }
+    }
+
+    rename("tmp.csv", arquivo);
+}
+
+void salvar_curso(Curso curso, char *arquivo) {
+    FILE *f = fopen(arquivo, "a");
+
+    fprintf(f, "%s,%d,%d,%d,%d\n", curso.nome, curso.codigo, curso.horas, curso.numero_vagas, curso.numero_participantes);
+
+    fclose(f);
+}
+
+void cadastrar_discente(char *arquivo) {
+    Discente discente = {0};
 
     char buff[TAM_MAX];
+    
+    printf("nome: ");
+    fgets(discente.nome, TAM_MAX, stdin);
+    cortar_nl(discente.nome);
 
-    FILE *f = fopen(onde, "r");
-    if (f == NULL) {
-        fprintf(stderr, "popular_turmas(): erro: nao foi possivel abrir arquivo: %s\n", onde);
-        exit(1);
-    };
+    printf("cpf: ");
+    fgets(discente.cpf, TAM_MAX, stdin);
+    cortar_nl(discente.cpf);
+
+    printf("idade: ");
+    fgets(buff, TAM_MAX, stdin);
+    cortar_nl(buff);
+    discente.idade = atoi(buff);
+
+    salvar_discente(discente, arquivo);
+}
+
+int popular_discentes(Discente *discentes, char *arquivo) {
+    FILE *f = fopen(arquivo, "r");
+
+    if (f == NULL) return 0;
+
+    int qtd_cads = contar_cadastros(arquivo);
+    char buff[TAM_MAX];
+
+    if (qtd_cads == 0) {
+        fclose(f);
+        return 0;
+    }
 
     for (int i = 0; i < qtd_cads; ++i) {
+        extrair_item(f, buff);
+        strcpy(discentes[i].nome, buff);
+
+        extrair_item(f, buff);
+        strcpy(discentes[i].cpf, buff);
+        
+        extrair_item(f, buff);
+        discentes[i].idade = atoi(buff);
+    }
+
+    return qtd_cads;
+}
+
+void mostrar_discentes(Discente *discentes, int qtd_discentes) {
+    if (qtd_discentes > 0) {
+        for (int i = 0; i < qtd_discentes; ++i) {
+            printf("%d. %s\n", i, discentes[i].nome);
+        }
+    } else {
+        printf("nenhum discente encontrado\n");
+    }
+}
+
+void mostrar_discente(Discente discente) {
+    printf("+ %s\n", discente.nome);
+}
+
+void remover_discente(char *arquivo) {
+    Discente discentes[TAM_MAX];
+    char buffer[TAM_MAX];
+
+    int qtd_discentes = popular_discentes(discentes, arquivo);
+
+    mostrar_discentes(discentes, qtd_discentes);
+
+    printf("\ninsira o numero discente para remover\n");
+    printf("> ");
+
+    fgets(buffer, TAM_MAX, stdin);
+    cortar_nl(buffer);
+    
+    for (int k = 0; k < qtd_discentes; ++k) {
+        if (atoi(buffer) == k) continue;
+        salvar_discente(discentes[k], "tmp.csv");
+    }
+
+    rename("tmp.csv", arquivo);
+}
+
+void editar_discente(char *arquivo) {
+    Discente discentes[TAM_MAX];
+    char buffer[TAM_MAX];
+
+    int qtd_discentes = popular_discentes(discentes, arquivo);
+
+    printf("\ninsira o numero discente para editar\n");
+    printf("> ");
+
+    fgets(buffer, TAM_MAX, stdin);
+    cortar_nl(buffer);
+
+    LIMPAR_TELA();
+    
+    for (int k = 0; k < qtd_discentes; ++k) {
+        if (k == atoi(buffer)) {
+            cadastrar_discente("tmp.csv");
+        } else {
+            salvar_discente(discentes[k], "tmp.csv");
+        }
+    }
+
+    rename("tmp.csv", arquivo);
+}
+
+void salvar_discente(Discente discente, char *arquivo) {
+    FILE *f = fopen(arquivo, "a");
+
+    fprintf(f, "%s,%s,%d\n", discente.nome, discente.cpf, discente.idade);
+
+    fclose(f);
+}
+
+void pesquisar_discente(char *arquivo) {
+    char busca[TAM_MAX];
+    char buffer[TAM_MAX];
+
+    Discente discentes[TAM_MAX];
+    int qtd_discentes = popular_discentes(discentes, arquivo);
+    int encontrados = 0;
+
+    printf("> ");
+    fgets(buffer, TAM_MAX, stdin);
+    cortar_nl(buffer);
+
+    LIMPAR_TELA();
+    
+    CABECALHO();
+    printf("----: resultado :----\n\n");
+    for (int i = 0; i < qtd_discentes; ++i) {
+        strncpy(busca, discentes[i].nome, strlen(buffer));
+        if (strcmp(busca, buffer) == 0) {
+            encontrados++;
+            mostrar_discente(discentes[i]);
+        }
+    }
+
+    if (encontrados == 0) {
+        printf("nenhum discente encontrado\n");
+    }
+}
+
+void cadastrar_turma(char **arquivos) {
+    Turma turma = {0};
+
+    char buffer[TAM_MAX];
+
+    Discente discentes[TAM_MAX];
+    int qtd_cads = popular_discentes(discentes, arquivos[ARQ_DISCENTES]);
+
+    printf("numero: ");
+    fgets(buffer, TAM_MAX, stdin);
+    cortar_nl(buffer);
+    turma.numero = atoi(buffer);
+
+    printf("codigo: ");
+    fgets(turma.codigo, TAM_MAX, stdin);
+    cortar_nl(turma.codigo);
+
+    printf("ano: ");
+    fgets(buffer, TAM_MAX, stdin);
+    cortar_nl(buffer);
+    turma.ano = atoi(buffer);
+
+    int cpfs[TAM_MAX];
+    float notas[TAM_MAX];
+    float horas[TAM_MAX];
+
+    int cont = 0;
+
+    for (;;) {
+        LIMPAR_TELA();
+        CABECALHO();
+        printf("----: adicionar discentes :----\n\n");
+        for (int i = 0; i < qtd_cads; ++i) {
+            int add = 0;
+
+            for (int j = 0; j < cont; ++j) {
+                if (i == cpfs[j]) add = 1;
+            }
+
+            if (!add) {
+                printf("+ (%d) %s (%s)\n", i, discentes[i].nome, discentes[i].cpf);
+            }
+        }
+
+        printf("\n----: discentes adicionados :----\n\n");
+
+        if (cont == 0) {
+            printf("nenhum discente adicionado!!\n");
+        } else {
+            for (int i = 0; i < cont; ++i) {
+                printf("+ %s (%s)\n", discentes[cpfs[i]].nome, discentes[cpfs[i]].cpf);
+            }
+        }
+        
+        printf("\n---------------------------------\n\n");
+        printf("digite o numero do discente para adicionar ou retirar\n");
+        printf("obs: insira 'r' para recomecar, 't' para terminar e 'q' para sair\n");
+        printf("> ");
+        
+        fgets(buffer, TAM_MAX, stdin);
+        cortar_nl(buffer);
+        
+        if (*buffer == 'q') return;
+        if (*buffer == 't') break;
+        if (*buffer == 'r') {
+            cont = 0;
+            continue;
+        }
+
+        cpfs[cont++] = atoi(buffer);
+    }
+
+    for (int i = 0; i < cont; ++i) {
+        LIMPAR_TELA();
+        CABECALHO();
+        printf("----: adicionar discentes :----\n\n");
+        
+        printf("discente: %s (%s)\n\n", discentes[cpfs[i]].nome, discentes[cpfs[i]].cpf);
+
+        printf("nota: ");
+        fgets(buffer, TAM_MAX, stdin);
+        cortar_nl(buffer);
+        turma.nota = atof(buffer);
+
+        printf("horas de participacao: ");
+        fgets(buffer, TAM_MAX, stdin);
+        cortar_nl(buffer);
+        turma.horas_participacao = atof(buffer);
+
+        strcpy(turma.cpf, discentes[cpfs[i]].cpf);
+
+        salvar_turma(turma, arquivos[ARQ_TURMAS]);
+    }
+}
+
+int popular_turmas(Turma *turmas, char *arquivo) {
+    FILE *f = fopen(arquivo, "r");
+
+    if (f == NULL) return 0;
+
+    int qtd_cads = contar_cadastros(arquivo);
+    char buff[TAM_MAX];
+
+    if (qtd_cads == 0) {
+        fclose(f);
+        return 0;
+    }
+
+    for (int i = 0; i < qtd_cads; ++i) {
+        extrair_item(f, buff);
+        strcpy(turmas[i].cpf, buff);
+
         extrair_item(f, buff);
         turmas[i].numero = atoi(buff);
 
         extrair_item(f, buff);
-        turmas[i].codigo = atoi(buff);
-
+        strcpy(turmas[i].codigo, buff);
+        
         extrair_item(f, buff);
         turmas[i].ano = atoi(buff);
 
         extrair_item(f, buff);
-        int qtd_disc = atoi(buff);
+        turmas[i].nota = atof(buff);
 
         extrair_item(f, buff);
-        turmas[i].codigo_curso = atoi(buff);
-
-        turmas[i].notas = malloc(sizeof(float) * qtd_disc);
-        turmas[i].cpf = malloc(qtd_disc);
-        turmas[i].horas_participacao = malloc(qtd_disc);
-
-        for (int j = 0; j < qtd_disc; ++j) {
-            extrair_item(f, buff);
-            turmas[i].cpf[j] = malloc(sizeof(char) * strlen(buff));
-            strcpy(turmas[i].cpf[j], buff);
-
-            extrair_item(f, buff);
-            turmas[i].notas[j] = atof(buff);
-
-            extrair_item(f, buff);
-            turmas[i].horas_participacao[j] = atoi(buff);
-        }
-
-        turmas[i].qtd_cpf = qtd_disc;
+        turmas[i].horas_participacao = atof(buff);
     }
+}
+
+void mostrar_turmas(Turma *turmas, int qtd_turmas) {
+    if (qtd_turmas > 0) {
+        for (int i = 0; i < qtd_turmas; ++i) {
+            printf("+ turma %s\n", turmas[i].codigo);
+        }
+    } else {
+        printf("nenhuma turma encontrada\n");
+    }
+}
+
+void remover_turma(char *arquivo) {
+    printf("erro: nao implementado\n");
+    exit(1);
+}
+
+void editar_turma(char *arquivo) {
+    printf("erro: nao implementado\n");
+    exit(1);
+}
+
+void salvar_turma(Turma turma, char *arquivo) {
+    FILE *f = fopen(arquivo, "a");
+
+    fprintf(f, "%s,%d,%s,%d,%f,%f\n", turma.cpf, turma.numero, turma.codigo, turma.ano, turma.nota, turma.horas_participacao);
 
     fclose(f);
-
-    return turmas;
-}
-
-void exibir_turmas(char *onde[]) {
-    int qtd_cads = contar_cadastros(onde[ARQ_TURMAS]);
-    Turma *turmas = popular_turmas(qtd_cads, onde[ARQ_TURMAS]);
-
-    for (int i = 0; i < qtd_cads; ++i) {
-        imprimir_turma(turmas[i], onde);
-    }
-}
-
-void remover_turma(char *onde[]) {
-    int qtd_cads = contar_cadastros(onde[ARQ_TURMAS]);
-    int qtd_cursos = contar_cadastros(onde[ARQ_CURSOS]);
-    char buff[TAM_MAX];
-
-    Turma *turmas = popular_turmas(qtd_cads, onde[ARQ_TURMAS]);
-    Curso *cursos = popular_cursos(qtd_cursos, onde[ARQ_CURSOS]);
-
-    printf("+----------------------------------------+\n");
-    for (int i = 0; i < qtd_cads; ++i) {
-        for (int j = 0; j < qtd_cursos; ++j) {
-            if (turmas[i].codigo_curso == cursos[j].codigo) {
-                printf("│ %d │ %d - %s\n", i + 1, turmas[i].codigo, cursos[j].nome);
-            }
-        }
-    }
-    printf("+----------------------------------------+\n");
-
-    printf("Digite o numero identificador da turma:\n");
-    printf("> ");
-
-    fgets(buff, TAM_MAX, stdin);
-    cortar_nl(buff);
-
-    for (int k = 0; k < qtd_cads; ++k) {
-        if (turmas[k].codigo == turmas[atoi(buff) - 1].codigo) continue;
-        salvar_turma("tmp.csv", turmas[k]);
-    }
-    rename("tmp.csv", onde[ARQ_TURMAS]);
 }
 
 int main(void) {
-    Menus menu = PRINCIPAL;
+    // menu em que usuario se encontra
+    Menus menu_atual = PRINCIPAL;
 
-    char *arquivos[] = {
-        "discentes.csv", // ARQ_DISCENTES
-        "cursos.csv",    // ARQ_CURSOS
-        "turmas.csv"     // ARQ_TURMAS
-    };
-    char op[8];
+    // entrada de opcao  de menu pelo usuario
+    char opcao[TAM_MAX];
     
+    // vetores com dados a serem populados
+    Discente discentes[TAM_MAX];
+    Curso cursos[TAM_MAX];
+    Turma turmas[TAM_MAX];
+
+    // contadores dos vetores de dados
+    int qtd_discentes = 0;
+    int qtd_cursos = 0;
+    int qtd_turmas = 0;
+
+    // nomes de arquivos onde dados serao armazenados
+    char *arquivos[] = {
+        "cursos.csv",
+        "discentes.csv",
+        "turmas.csv"
+    };
+
+    // loop de menu
     for (;;) {
-        limpar_tela();
-        switch (menu) {
+        LIMPAR_TELA();
+        CABECALHO();
+        switch (menu_atual) {
             case PRINCIPAL:
-                printf("----: menu principal :----\n\n");
-                printf("1. discentes\n");
-                printf("2. cursos\n");
-                printf("3. turmas\n");
-                printf("4. relatorios\n");
-                printf("5. sair\n");
-                printf("\n> ");
-                fgets(op, 8, stdin);
+                printf("----: menu principal :----\n");
+                printf("(1) cursos\n");
+                printf("(2) discentes\n");
+                printf("(3) turmas\n\n");
+                printf("(4) relatorios\n\n");
+                printf("(5) sair\n");
+                printf("> ");
                 
-                switch (*op) {
-                    case '1': menu = DISCENTES; break;
-                    case '2': menu = CURSOS; break;
-                    case '3': menu = TURMAS; break;
-                    case '4': menu = RELATORIOS; break;
-                    case '5': menu = SAIR; break;
-                    default: menu = INVALIDO;
+                // leitura de entrada do usuario
+                if (fgets(opcao, TAM_MAX, stdin) == NULL) {
+                    menu_atual = INVALIDO;
+                }
+                
+                // efeito colateral da opcao selecionada
+                if (*opcao == '1') {
+                    menu_atual = CURSOS;
+                } else if (*opcao == '2') {
+                    menu_atual = DISCENTES;
+                } else if (*opcao == '3') {
+                    menu_atual = TURMAS;
+                } else if (*opcao == '4') {
+                    menu_atual = RELATORIOS;
+                } else if (*opcao == '5') {
+                    menu_atual = SAIR;
+                }
+
+                break;
+            case CURSOS:
+                printf("----: cursos :----\n\n");
+
+                qtd_cursos = popular_cursos(cursos, arquivos[ARQ_CURSOS]);
+                mostrar_cursos(cursos, qtd_cursos);
+                
+                printf("\n------------------\n\n");
+                printf("(1) cadastrar curso\n");
+                printf("(2) remover curso\n");
+                printf("(3) editar curso\n");
+                printf("(5) voltar\n\n");
+                printf("> ");
+
+                fgets(opcao, TAM_MAX, stdin);
+                
+                if (*opcao == '1') {
+                    LIMPAR_TELA();
+                    CABECALHO();
+                    printf("----: cadastro de curso :----\n\n");
+                    cadastrar_curso(arquivos[ARQ_CURSOS]);
+                } else if (*opcao == '2') {
+                    LIMPAR_TELA();
+                    CABECALHO();
+                    printf("----: remover curso :----\n\n");
+                    remover_curso(arquivos[ARQ_CURSOS]);
+                } else if(*opcao == '3') {
+                    LIMPAR_TELA();
+                    CABECALHO();
+                    printf("----: editar curso :----\n\n");
+                    mostrar_cursos(cursos, qtd_cursos);
+                    editar_curso(arquivos[ARQ_CURSOS]);
+                } else if(*opcao == '5') {
+                    menu_atual = PRINCIPAL;
+                } else {
+                    LIMPAR_TELA();
+                    CABECALHO();
+                    printf("opcao invalida\n");
+                    getchar();
                 }
 
                 break;
             case DISCENTES:
                 printf("----: discentes :----\n\n");
-                printf("1. cadastrar discente\n");
-                printf("2. remover discente\n");
 
-                printf("\n> ");
+                qtd_discentes = popular_discentes(discentes, arquivos[ARQ_DISCENTES]);
+                mostrar_discentes(discentes, qtd_discentes);
+                
+                printf("\n---------------------\n\n");
+                printf("(1) cadastrar discente\n");
+                printf("(2) remover discente\n");
+                printf("(3) editar discente\n");
+                printf("(5) voltar\n\n");
+                printf("> ");
 
-                fgets(op, 8, stdin);
-                if (*op == '1') {
-                    limpar_tela();
-                    printf("----: cadastrar discente :----\n\n");
+                fgets(opcao, TAM_MAX, stdin);
+                
+                if (*opcao == '1') {
+                    LIMPAR_TELA();
+                    CABECALHO();
+                    printf("----: cadastro de discente :----\n\n");
                     cadastrar_discente(arquivos[ARQ_DISCENTES]);
-                } else if (*op == '2') {
-                    limpar_tela();
+                } else if (*opcao == '2') {
+                    LIMPAR_TELA();
+                    CABECALHO();
                     printf("----: remover discente :----\n\n");
                     remover_discente(arquivos[ARQ_DISCENTES]);
+                } else if(*opcao == '3') {
+                    LIMPAR_TELA();
+                    CABECALHO();
+                    printf("----: discentes :----\n\n");
+                    mostrar_discentes(discentes, qtd_discentes);
+                    editar_discente(arquivos[ARQ_DISCENTES]);
+                } else if(*opcao == '5') {
+                    menu_atual = PRINCIPAL;
+                } else {
+                    LIMPAR_TELA();
+                    CABECALHO();
+                    printf("opcao invalida\n");
+                    getchar();
                 }
-                
-                menu = PRINCIPAL;
-                break;
-            case CURSOS:
-                printf("----: cursos :----\n\n");
-                printf("1. cadastrar curso\n");
-                printf("2. remover curso\n");
-
-                printf("\n> ");
-
-                fgets(op, 8, stdin);
-                
-                if (*op == '1') {
-                    limpar_tela();
-                    printf("----: cadastrar curso :----\n\n");
-                    cadastrar_curso(arquivos[ARQ_CURSOS]);
-                } else if (*op == '2') {
-                    limpar_tela();
-                    printf("----: remover curso :----\n\n");
-                    remover_curso(arquivos[ARQ_CURSOS]);
-                }
-
-                menu = PRINCIPAL;
                 break;
             case TURMAS:
-                limpar_tela();
                 printf("----: turmas :----\n\n");
-                printf("1. cadastrar turma\n");
-                printf("2. remover turma\n");
-                printf("\n> ");
 
-                fgets(op, 8, stdin);
+                qtd_turmas = popular_turmas(turmas, arquivos[ARQ_TURMAS]);
+                mostrar_turmas(turmas, qtd_turmas);
 
-                if (*op == '1') {
-                    limpar_tela();
-                    printf("----: cadastrar turma :----\n\n");
+                printf("\n---------------------\n\n");
+                printf("(1) cadastrar turma\n");
+                printf("(2) remover turma\n");
+                printf("(3) editar turma\n");
+                printf("(5) voltar\n\n");
+                printf("> ");
+
+                fgets(opcao, TAM_MAX, stdin);
+
+                if (*opcao == '1') {
+                    LIMPAR_TELA();
+                    CABECALHO();
+                    printf("----: cadastro de turma :----\n\n");
                     cadastrar_turma(arquivos);
-                } else if (*op == '2') {
-                    limpar_tela();
+                } else if (*opcao == '2') {
+                    LIMPAR_TELA();
+                    CABECALHO();
                     printf("----: remover turma :----\n\n");
-                    remover_turma(arquivos);
+                    remover_turma(arquivos[ARQ_TURMAS]);
+                } else if(*opcao == '3') {
+                    LIMPAR_TELA();
+                    CABECALHO();
+                    printf("----: turmas :----\n\n");
+                    mostrar_turmas(turmas, qtd_turmas);
+                    editar_turma(arquivos[ARQ_TURMAS]);
+                } else if(*opcao == '5') {
+                    menu_atual = PRINCIPAL;
+                } else {
+                    LIMPAR_TELA();
+                    CABECALHO();
+                    printf("opcao invalida\n");
+                    getchar();
                 }
-
-                menu = PRINCIPAL;
                 break;
             case RELATORIOS:
-                limpar_tela();
                 printf("----: relatorios :----\n\n");
-                printf("1. discentes\n");
-                printf("2. cursos\n");
-                printf("3. turmas\n");
-                printf("\n> ");
 
-                fgets(op, 8, stdin);
-                switch (*op) {
-                    case '1':
-                        limpar_tela();
-                        printf("----: listagem discentes :----\n\n");
-                        printf("1. lista completa\n");
-                        printf("2. pesquisar\n");
-                        printf("\n> ");
+                printf("(1) listagem geral de discentes\n");
+                printf("(2) pesquisar discente\n");
+                printf("(3) listagem dos cursos\n");
+                printf("(4) voltar\n\n");
+                printf("> ");
 
-                        fgets(op, 8, stdin);
+                fgets(opcao, TAM_MAX, stdin);
 
-                        if (*op == '1') {
-                            limpar_tela();
-                            printf("----: listagem discentes :----\n");
-                            exibir_discentes(arquivos[ARQ_DISCENTES]);
-                            getchar();
-                        } else if (*op == '2') {
-                            limpar_tela();
-                            printf("----: pesquisar discente :----\n");
-                            pesquisar_discente(arquivos[ARQ_DISCENTES]);
-                            getchar();
-                        }
-                        break;
-                    case '2':
-                        limpar_tela();
-                        printf("----: listagem cursos :----\n\n");
-                        exibir_cursos(arquivos[ARQ_CURSOS]);
-                        getchar();
-                        break;
-                    case '3':
-                        limpar_tela();
-                        printf("----: listagem turmas :----\n\n");
-                        printf("1. todas as turmas\n");
-                        //printf("2. por desempenho\n");
-                        printf("x. relatorio detalhado\n");
+                if (*opcao == '1') {
+                    LIMPAR_TELA();
+                    CABECALHO();
+                    printf("----: relatorio discentes :----\n\n");
 
-                        fgets(op, 8, stdin);
+                    qtd_discentes = popular_discentes(discentes, arquivos[ARQ_DISCENTES]);
+                    printf("qtd_discentes: %d\n\n", qtd_discentes);
+                    for (int i = 0; i < qtd_discentes; ++i) {
+                        printf("+ %s\n", discentes[i].nome);
+                        printf("\t  cpf: %s\n", discentes[i].cpf);
+                        printf("\tidade: %d\n", discentes[i].idade);
+                        printf("\n");
+                    }
+                    getchar();
+                } else if (*opcao == '2') {
+                    LIMPAR_TELA();
+                    CABECALHO();
+                    printf("----: pesquisar discente :----\n\n");
+                    pesquisar_discente(arquivos[ARQ_DISCENTES]);
+                    getchar();
+                } else if (*opcao == '3') {
+                    LIMPAR_TELA();
+                    CABECALHO();
+                    printf("----: relatorio de cursos :----\n\n");
 
-                        switch (*op) {
-                            case '1':
-                                limpar_tela();
-                                printf("----: todas as turmas :----\n\n");
-                                exibir_turmas(arquivos);
-                                break;
-                            case '2':
-                                limpar_tela();
-                                printf("----: turmas por desempenho :----\n\n");
-
-                                getchar();
-                                break;
-                        }
-
-                        getchar();
-                        break;
-                    default:
-                        menu = INVALIDO;
+                    qtd_cursos = popular_cursos(cursos, arquivos[ARQ_CURSOS]);
+                    printf("quantidade de cursos: %d\n\n", qtd_cursos);
+                    for (int i = 0; i < qtd_cursos; ++i) {
+                        printf("+ %s\n", cursos[i].nome);
+                        printf("\t       codigo: %d\n", cursos[i].codigo);
+                        printf("\t        horas: %d\n", cursos[i].horas);
+                        printf("\t        vagas: %d\n", cursos[i].numero_vagas);
+                        printf("\n");
+                    }
+                    getchar();
+                } else if (*opcao == '4') {
+                    menu_atual = PRINCIPAL;
+                } else {
+                    LIMPAR_TELA();
+                    CABECALHO();
+                    printf("opcao invalida\n");
+                    getchar();
                 }
-
-                menu = PRINCIPAL;
                 break;
-            case SAIR: return 0;
-            default:
-                printf("----: erro :----\n");
-                printf("opção inválida!!\n");
+            case SAIR:
+                printf("saindo\n");
                 getchar();
-
-                menu = PRINCIPAL;
+                exit(1);
+                break;
+            case INVALIDO:
+            default:
+                printf("opção inválida\n");
+                getchar();
+                menu_atual = PRINCIPAL;
         }
     }
-    
     return 0;
 }
