@@ -73,6 +73,7 @@ void cadastrar_discente(char *arquivo);
 int popular_discentes(Discente *discentes, char *arquivo);
 void mostrar_discentes(Discente *discentes, int qtd_discentes);
 void mostrar_discente(Discente discente);
+void remover_um_discente(char *arquivo, int i);
 void remover_discente(char *arquivo);
 void editar_discente(char *arquivo);
 void salvar_discente(Discente discente, char *arquivo); // salva dados de discente em um arquivo
@@ -190,6 +191,25 @@ void mostrar_cursos(Curso *cursos, int qtd_cursos) {
     }
 }
 
+void remover_um_curso(char *arquivo, int i) {
+    Curso cursos[TAM_MAX];
+    int qtd_cursos = popular_cursos(cursos, arquivo);
+
+    if (qtd_cursos == 1) {
+        FILE *f = fopen("tmp.csv", "w");
+        fclose(f);
+        rename("tmp.csv", arquivo);
+        return;
+    }
+
+    for (int k = 0; k < qtd_cursos; ++k) {
+        if (i == k) continue;
+        salvar_curso(cursos[k], "tmp.csv");
+    }
+
+    rename("tmp.csv", arquivo);
+}
+
 void remover_curso(char *arquivo) {
     Curso cursos[TAM_MAX];
     char buffer[TAM_MAX];
@@ -218,23 +238,51 @@ void editar_curso(char *arquivo) {
     char buffer[TAM_MAX];
 
     int qtd_cursos = popular_cursos(cursos, arquivo);
+    int indice;
 
     printf("\ninsira o numero curso para editar\n");
     printf("> ");
 
     fgets(buffer, TAM_MAX, stdin);
     cortar_nl(buffer);
+    indice = atoi(buffer);
 
     LIMPAR_TELA();
     
     for (int k = 0; k < qtd_cursos; ++k) {
-        if (k == atoi(buffer)) {
-            cadastrar_curso("tmp.csv");
+        if (k == indice) {
+            printf("deixe campos em branco para manter inalterado!\n\n");
+
+            printf("nome (%s): ", cursos[indice].nome);
+            fgets(buffer, TAM_MAX, stdin);
+            if (*buffer != '\n') {
+                cortar_nl(buffer);
+                strcpy(cursos[indice].nome, buffer);
+            }
+
+            printf("codigo (%d): ", cursos[indice].codigo);
+            fgets(buffer, TAM_MAX, stdin);
+            if (*buffer != '\n') cursos[indice].codigo = atoi(buffer);
+
+            printf("horas (%d): ", cursos[indice].horas);
+            fgets(buffer, TAM_MAX, stdin);
+            if (*buffer != '\n') cursos[indice].horas = atoi(buffer);
+
+            printf("numero de vagas (%d): ", cursos[indice].numero_vagas);
+            fgets(buffer, TAM_MAX, stdin);
+            if (*buffer != '\n') cursos[indice].numero_vagas = atoi(buffer);
+
+            printf("numero de participantes (%d): ", cursos[indice].numero_participantes);
+            fgets(buffer, TAM_MAX, stdin);
+            if (*buffer != '\n') cursos[indice].numero_participantes = atoi(buffer);
+
+            continue;
         } else {
             salvar_curso(cursos[k], "tmp.csv");
         }
     }
 
+    salvar_curso(cursos[indice], "tmp.csv");
     rename("tmp.csv", arquivo);
 }
 
@@ -308,13 +356,32 @@ void mostrar_discente(Discente discente) {
     printf("+ %s\n", discente.nome);
 }
 
+void remover_um_discente(char *arquivo, int i) {
+    Discente discentes[TAM_MAX];
+    int qtd_discentes = popular_discentes(discentes, arquivo);
+
+    if (qtd_discentes == 1) {
+        FILE *f = fopen("tmp.csv", "w");
+        fclose(f);
+        rename("tmp.csv", arquivo);
+        return;
+    }
+
+    for (int k = 0; k < qtd_discentes; ++k) {
+        if (i == k) continue;
+        salvar_discente(discentes[k], "tmp.csv");
+    }
+
+    rename("tmp.csv", arquivo);
+}
+
 void remover_discente(char *arquivo) {
     Discente discentes[TAM_MAX];
     char buffer[TAM_MAX];
 
     int qtd_discentes = popular_discentes(discentes, arquivo);
 
-    for (int i = 0; i < qtd_discentes; ++i) {
+    for (int i = 0; i < qtd_discentes; i++) {
         printf("%d. %s\n", i, discentes[i].nome);
     }
 
@@ -322,14 +389,8 @@ void remover_discente(char *arquivo) {
     printf("> ");
 
     fgets(buffer, TAM_MAX, stdin);
-    cortar_nl(buffer);
     
-    for (int k = 0; k < qtd_discentes; ++k) {
-        if (atoi(buffer) == k) continue;
-        salvar_discente(discentes[k], "tmp.csv");
-    }
-
-    rename("tmp.csv", arquivo);
+    remover_um_discente(arquivo, atoi(buffer));
 }
 
 void editar_discente(char *arquivo) {
@@ -337,23 +398,44 @@ void editar_discente(char *arquivo) {
     char buffer[TAM_MAX];
 
     int qtd_discentes = popular_discentes(discentes, arquivo);
+    int indice;
 
     printf("\ninsira o numero discente para editar\n");
     printf("> ");
 
     fgets(buffer, TAM_MAX, stdin);
-    cortar_nl(buffer);
+    indice = atoi(buffer);
 
     LIMPAR_TELA();
     
     for (int k = 0; k < qtd_discentes; ++k) {
-        if (k == atoi(buffer)) {
-            cadastrar_discente("tmp.csv");
-        } else {
-            salvar_discente(discentes[k], "tmp.csv");
+        if (k == indice) {
+            printf("deixe campos em branco para manter inalterado!\n\n");
+
+            printf("nome (%s): ", discentes[indice].nome);
+            fgets(buffer, TAM_MAX, stdin);
+            if (*buffer != '\n') {
+                cortar_nl(buffer);
+                strcpy(discentes[indice].nome, buffer);
+            }
+
+            printf("cpf (%s): ", discentes[indice].cpf);
+            fgets(buffer, TAM_MAX, stdin);
+            if (*buffer != '\n') {
+                cortar_nl(buffer);
+                strcpy(discentes[indice].cpf, buffer);
+            }
+
+            printf("idade (%d): ", discentes[indice].idade);
+            fgets(buffer, TAM_MAX, stdin);
+            if (*buffer != '\n') discentes[indice].idade = atoi(buffer);
+
+            continue;
         }
+        salvar_discente(discentes[k], "tmp.csv");
     }
 
+    salvar_discente(discentes[indice], "tmp.csv");
     rename("tmp.csv", arquivo);
 }
 
@@ -676,7 +758,11 @@ int main(void) {
                     LIMPAR_TELA();
                     CABECALHO();
                     printf("----: editar curso :----\n\n");
-                    mostrar_cursos(cursos, qtd_cursos);
+
+                    for (int i = 0; i < qtd_cursos; ++i) {
+                        printf("%d. %s\n", i, cursos[i].nome);
+                    }
+
                     editar_curso(arquivos[ARQ_CURSOS]);
                 } else if(*opcao == '5') {
                     menu_atual = PRINCIPAL;
@@ -717,7 +803,11 @@ int main(void) {
                     LIMPAR_TELA();
                     CABECALHO();
                     printf("----: discentes :----\n\n");
-                    mostrar_discentes(discentes, qtd_discentes);
+
+                    for (int i = 0; i < qtd_discentes; ++i) {
+                        printf("%d. %s\n", i, discentes[i].nome);
+                    }
+
                     editar_discente(arquivos[ARQ_DISCENTES]);
                 } else if(*opcao == '5') {
                     menu_atual = PRINCIPAL;
