@@ -48,7 +48,7 @@ typedef struct {
 typedef struct {
     char cpf[TAM_MAX];
     int numero;
-    char codigo[TAM_MAX];
+    int codigo_curso;
     int ano;
     float nota;
     float horas_participacao;
@@ -297,7 +297,7 @@ int popular_discentes(Discente *discentes, char *arquivo) {
 void mostrar_discentes(Discente *discentes, int qtd_discentes) {
     if (qtd_discentes > 0) {
         for (int i = 0; i < qtd_discentes; ++i) {
-            printf("%d. %s\n", i, discentes[i].nome);
+            printf("+ %s\n", discentes[i].nome);
         }
     } else {
         printf("nenhum discente encontrado\n");
@@ -314,7 +314,9 @@ void remover_discente(char *arquivo) {
 
     int qtd_discentes = popular_discentes(discentes, arquivo);
 
-    mostrar_discentes(discentes, qtd_discentes);
+    for (int i = 0; i < qtd_discentes; ++i) {
+        printf("%d. %s\n", i, discentes[i].nome);
+    }
 
     printf("\ninsira o numero discente para remover\n");
     printf("> ");
@@ -400,14 +402,22 @@ void cadastrar_turma(char **arquivos) {
     Discente discentes[TAM_MAX];
     int qtd_cads = popular_discentes(discentes, arquivos[ARQ_DISCENTES]);
 
+    Curso cursos[TAM_MAX];
+    int qtd_cursos = popular_cursos(cursos, arquivos[ARQ_CURSOS]);
+
     printf("numero: ");
     fgets(buffer, TAM_MAX, stdin);
     cortar_nl(buffer);
     turma.numero = atoi(buffer);
 
-    printf("codigo: ");
-    fgets(turma.codigo, TAM_MAX, stdin);
-    cortar_nl(turma.codigo);
+    for (int i = 0; i < qtd_cursos; ++i) {
+        printf("\t+ %d - %s\n", cursos[i].codigo, cursos[i].nome);
+    }
+
+    printf("\ncodigo do curso: ");
+    fgets(buffer, TAM_MAX, stdin);
+    cortar_nl(buffer);
+    turma.codigo_curso = atoi(buffer);
 
     printf("ano: ");
     fgets(buffer, TAM_MAX, stdin);
@@ -508,7 +518,7 @@ int popular_turmas(Turma *turmas, char *arquivo) {
         turmas[i].numero = atoi(buff);
 
         extrair_item(f, buff);
-        strcpy(turmas[i].codigo, buff);
+        turmas[i].codigo_curso = atoi(buff);
         
         extrair_item(f, buff);
         turmas[i].ano = atoi(buff);
@@ -522,9 +532,23 @@ int popular_turmas(Turma *turmas, char *arquivo) {
 }
 
 void mostrar_turmas(Turma *turmas, int qtd_turmas) {
+    int turmas_num[TAM_MAX], exibir;
+    int qtd_num = 0;
+
     if (qtd_turmas > 0) {
         for (int i = 0; i < qtd_turmas; ++i) {
-            printf("+ turma %s\n", turmas[i].codigo);
+            exibir = 1;
+            for (int j = 0; j < qtd_num; ++j) {
+                if (turmas_num[j] == turmas[i].numero) {
+                    exibir = 0;
+                    break;
+                }
+            }
+
+            if (exibir) {
+                printf("+ turma %d\n", turmas[i].numero);
+                turmas_num[qtd_num++] = turmas[i].numero;
+            }
         }
     } else {
         printf("nenhuma turma encontrada\n");
@@ -532,8 +556,25 @@ void mostrar_turmas(Turma *turmas, int qtd_turmas) {
 }
 
 void remover_turma(char *arquivo) {
-    printf("erro: nao implementado\n");
-    exit(1);
+    Turma turmas[TAM_MAX];
+    char buffer[TAM_MAX];
+
+    int qtd_turmas = popular_turmas(turmas, arquivo);
+
+    mostrar_turmas(turmas, qtd_turmas);
+
+    printf("\ninsira o numero da turma para remover\n");
+    printf("> ");
+
+    fgets(buffer, TAM_MAX, stdin);
+    cortar_nl(buffer);
+    
+    for (int k = 0; k < qtd_turmas; ++k) {
+        if (atoi(buffer) == turmas[k].numero) continue;
+        salvar_turma(turmas[k], "tmp.csv");
+    }
+
+    rename("tmp.csv", arquivo);
 }
 
 void editar_turma(char *arquivo) {
@@ -544,7 +585,7 @@ void editar_turma(char *arquivo) {
 void salvar_turma(Turma turma, char *arquivo) {
     FILE *f = fopen(arquivo, "a");
 
-    fprintf(f, "%s,%d,%s,%d,%f,%f\n", turma.cpf, turma.numero, turma.codigo, turma.ano, turma.nota, turma.horas_participacao);
+    fprintf(f, "%s,%d,%d,%d,%f,%f\n", turma.cpf, turma.numero, turma.codigo_curso, turma.ano, turma.nota, turma.horas_participacao);
 
     fclose(f);
 }
@@ -733,7 +774,11 @@ int main(void) {
                 printf("(1) listagem geral de discentes\n");
                 printf("(2) pesquisar discente\n");
                 printf("(3) listagem dos cursos\n");
-                printf("(4) voltar\n\n");
+                printf("(4) listagem de discentes em turmas\n");
+                printf("(5) listagem de discentes em turmas e curso\n");
+                printf("(6) listagem de discentes conforme numero de turma\n");
+                printf("(7) listagem turmas com media\n");
+                printf("\n(0) voltar\n\n");
                 printf("> ");
 
                 fgets(opcao, TAM_MAX, stdin);
@@ -774,6 +819,134 @@ int main(void) {
                     }
                     getchar();
                 } else if (*opcao == '4') {
+                    // Listagem do número da turma, cpf, nome e nota do discente.
+                    LIMPAR_TELA();
+                    CABECALHO();
+
+                    qtd_turmas = popular_turmas(turmas, arquivos[ARQ_TURMAS]);
+                    qtd_discentes = popular_discentes(discentes, arquivos[ARQ_DISCENTES]);
+
+                    for (int i = 0; i < qtd_discentes; ++i) {
+                        for (int j = 0; j < qtd_turmas; ++j) {
+                            if (strcmp(discentes[i].cpf, turmas[j].cpf) == 0) {
+                                printf("+ %s\n", discentes[i].nome);
+                                printf("\tnumero de turma: %d\n", turmas[j].numero);
+                                printf("\t            cpf: %s\n", turmas[j].cpf);
+                                printf("\t           nota: %.2f\n", turmas[j].nota);
+                                printf("\n");
+                            }
+                        }
+                    }
+
+                    getchar();
+                } else if (*opcao == '5') {
+                    // Listagem dos números das turmas, cpf, nome e nota do discente, bem como o código e nome do curso.
+                    LIMPAR_TELA();
+                    CABECALHO();
+
+                    qtd_turmas = popular_turmas(turmas, arquivos[ARQ_TURMAS]);
+                    qtd_discentes = popular_discentes(discentes, arquivos[ARQ_DISCENTES]);
+                    qtd_cursos = popular_cursos(cursos, arquivos[ARQ_CURSOS]);
+
+                    for (int i = 0; i < qtd_discentes; ++i) {
+                        for (int j = 0; j < qtd_turmas; ++j) {
+                            if (strcmp(discentes[i].cpf, turmas[j].cpf) == 0) {
+                                printf("+ %s\n", discentes[i].nome);
+                                printf("\tnumero de turma: %d\n", turmas[j].numero);
+                                printf("\t            cpf: %s\n", turmas[j].cpf);
+                                printf("\t           nota: %.2f\n", turmas[j].nota);
+
+                                int encontrado = 0;
+                                for (int k = 0; k < qtd_cursos; ++k) {
+                                    if (turmas[j].codigo_curso == cursos[k].codigo) {
+                                        printf("\t  nome do curso: %s\n", cursos[k].nome);
+                                        printf("\tcodigo do curso: %d\n", cursos[k].codigo);
+                                        encontrado = 1;
+                                        break;
+                                    }
+                                }
+                                if (!encontrado) {
+                                    printf("\t  nome do curso: nao cadastrado\n");
+                                    printf("\tcodigo do curso: s/n\n");
+                                }
+                                printf("\n");
+                            }
+                        }
+                    }
+
+                    getchar();
+                } else if (*opcao == '6') {
+                    // Listagem do cpf, nome e nota do discente conforme o número da turma.
+                    LIMPAR_TELA();
+                    CABECALHO();
+
+                    qtd_turmas = popular_turmas(turmas, arquivos[ARQ_TURMAS]);
+                    qtd_discentes = popular_discentes(discentes, arquivos[ARQ_DISCENTES]);
+
+                    int nums[TAM_MAX];
+                    int qtd_nums = 0, denom = 0;
+
+                    // TODO: achar maneira melhor de fazer isso, nao me parece eficiente
+                    // cataloga as turmas existentes
+                    for (int i = 0; i < qtd_turmas; ++i) {
+                        int repete = 0;
+                        for (int j = 0; j < qtd_nums; ++j)
+                            if (turmas[i].numero == nums[j]) repete = 1;
+                        
+                        if (repete) continue;
+                        nums[qtd_nums++] = turmas[i].numero;
+                    }
+
+                    for (int k = 0; k < qtd_nums; ++k) {
+                        printf("+ turma %d\n", nums[k]);
+                        for (int m = 0; m < qtd_turmas; ++m) {
+                            if (nums[k] == turmas[m].numero) {
+                                printf("\t- cpf: %s\n", turmas[m].cpf);
+                                printf("\t\t| nota: %.2f\n\n", turmas[m].nota);
+                            }
+                        }
+                    }
+
+                    getchar();
+                } else if (*opcao == '7') {
+                    // Listagem de todas as turmas, bem como a média das notas dos discentes.
+                    
+                    LIMPAR_TELA();
+                    CABECALHO();
+
+                    qtd_turmas = popular_turmas(turmas, arquivos[ARQ_TURMAS]);
+
+                    int nums[TAM_MAX];
+                    int qtd_nums = 0, denom = 0;
+                    float media = 0;
+
+                    // TODO: achar maneira melhor de fazer isso, nao me parece eficiente
+                    // cataloga as turmas existentes
+                    for (int i = 0; i < qtd_turmas; ++i) {
+                        int repete = 0;
+                        for (int j = 0; j < qtd_nums; ++j)
+                            if (turmas[i].numero == nums[j]) repete = 1;
+                        
+                        if (repete) continue;
+                        nums[qtd_nums++] = turmas[i].numero;
+                    }
+
+                    for (int k = 0; k < qtd_nums; ++k) {
+                        for (int m = 0; m < qtd_turmas; ++m) {
+                            if (nums[k] == turmas[m].numero) {
+                                media += turmas[m].nota;
+                                denom++;
+                            }
+                        }
+
+                        media /= denom;
+
+                        printf("+ turma %d\n", nums[k]);
+                        printf("\tmedia da turma: %.2f\n\n", media);
+                    }
+
+                    getchar();
+                } else if (*opcao == '0') {
                     menu_atual = PRINCIPAL;
                 } else {
                     LIMPAR_TELA();
