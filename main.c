@@ -637,13 +637,42 @@ void mostrar_turmas(Turma *turmas, int qtd_turmas) {
     }
 }
 
+void remover_uma_turma(char *arquivo, int i) {
+    Turma turmas[TAM_MAX];
+    int qtd_turmas = popular_turmas(turmas, arquivo);
+    int qtd_nums = 0, nums[TAM_MAX];
+
+    for (int k = 0; k < qtd_turmas; ++k) {
+        if (turmas[k].numero == nums[i]) continue;
+        salvar_turma(turmas[k], "tmp.csv");
+    }
+    rename("tmp.csv", arquivo);
+}
+
 void remover_turma(char *arquivo) {
     Turma turmas[TAM_MAX];
     char buffer[TAM_MAX];
 
     int qtd_turmas = popular_turmas(turmas, arquivo);
+    int nums[TAM_MAX], qtd_nums = 0;
 
-    mostrar_turmas(turmas, qtd_turmas);
+    for (int i = 0; i < qtd_turmas; ++i) {
+        int repete = 0;
+        for (int j = 0; j < qtd_nums; ++j)
+            if (turmas[i].numero == nums[j]) repete = 1;
+
+        if (repete) continue;
+        nums[qtd_nums++] = turmas[i].numero;
+    }
+
+    if (qtd_nums == 1) {
+        remove(arquivo);
+        return;
+    }
+
+    for (int i = 0; i < qtd_nums; ++i) {
+        printf("%d. turma %d\n", i, nums[i]);
+    }
 
     printf("\ninsira o numero da turma para remover\n");
     printf("> ");
@@ -652,10 +681,10 @@ void remover_turma(char *arquivo) {
     cortar_nl(buffer);
     
     for (int k = 0; k < qtd_turmas; ++k) {
-        if (atoi(buffer) == turmas[k].numero) continue;
+        if (turmas[k].numero == nums[atoi(buffer)]) continue;
         salvar_turma(turmas[k], "tmp.csv");
     }
-
+    
     rename("tmp.csv", arquivo);
 }
 
