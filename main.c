@@ -83,7 +83,7 @@ void cadastrar_turma(char **arquivos);
 int popular_turmas(Turma *turmas, char *arquivo);
 void mostrar_turmas(Turma *turmas, int qtd_turmas);
 void remover_turma(char *arquivo);
-void editar_turma(char *arquivo);
+void editar_turma(char *arquivo[]);
 void salvar_turma(Turma turma, char *arquivo); // salva dados de turma em um arquivo
 
 void cortar_nl(char *s) {
@@ -637,14 +637,13 @@ void mostrar_turmas(Turma *turmas, int qtd_turmas) {
     }
 }
 
-void remover_uma_turma(char *arquivo, int i) {
+void remover_uma_turma(int indice, char *arquivo) {
     Turma turmas[TAM_MAX];
     int qtd_turmas = popular_turmas(turmas, arquivo);
-    int qtd_nums = 0, nums[TAM_MAX];
-
-    for (int k = 0; k < qtd_turmas; ++k) {
-        if (turmas[k].numero == nums[i]) continue;
-        salvar_turma(turmas[k], "tmp.csv");
+    
+    for (int i = 0; i < qtd_turmas; ++i) {
+        if (i == indice) continue;
+        salvar_turma(turmas[i], "tmp.csv");
     }
     rename("tmp.csv", arquivo);
 }
@@ -688,9 +687,124 @@ void remover_turma(char *arquivo) {
     rename("tmp.csv", arquivo);
 }
 
-void editar_turma(char *arquivo) {
-    printf("erro: nao implementado\n");
-    exit(1);
+void editar_turma(char *arquivos[]) {
+    Turma turmas[TAM_MAX];
+    Discente discentes[TAM_MAX];
+    Curso cursos[TAM_MAX];
+
+    char buffer[TAM_MAX];
+
+    int qtd_turmas = popular_turmas(turmas, arquivos[ARQ_TURMAS]);
+    int qtd_cads = popular_discentes(discentes, arquivos[ARQ_DISCENTES]);
+    int qtd_cursos = popular_cursos(cursos, arquivos[ARQ_CURSOS]);
+    int nums[TAM_MAX], qtd_nums = 0;
+
+    for (int i = 0; i < qtd_turmas; ++i) {
+        int repete = 0;
+        for (int j = 0; j < qtd_nums; ++j)
+            if (turmas[i].numero == nums[j]) repete = 1;
+
+        if (repete) continue;
+        nums[qtd_nums++] = turmas[i].numero;
+    }
+
+    for (int i = 0; i < qtd_nums; ++i) {
+        printf("%d. turma %d\n", i, nums[i]);
+    }
+
+    printf("\ninsira o numero da turma para editar\n");
+    printf("> ");
+
+    fgets(buffer, TAM_MAX, stdin);
+    cortar_nl(buffer);
+
+
+    for (int k = 0; k < qtd_turmas; ++k) {
+        if (turmas[k].numero == nums[atoi(buffer)]) {
+            printf("deixe campos em branco para manter inalterado!\n\n");
+            printf("editando turma %d\n\n", turmas[k].numero);
+
+            printf("numero (%d): ", turmas[k].numero);
+            fgets(buffer, TAM_MAX, stdin);
+            if (*buffer != '\n') {
+                cortar_nl(buffer);
+                turmas[k].numero = atoi(buffer);
+            }
+
+            for (int i = 0; i < qtd_cursos; ++i) {
+                printf("\t+ %d - %s\n", cursos[i].codigo, cursos[i].nome);
+            }
+
+            printf("\ncodigo do curso (%d): ", turmas[k].codigo_curso);
+            fgets(buffer, TAM_MAX, stdin);
+            if (*buffer != '\n') {
+                cortar_nl(buffer);
+                turmas[k].codigo_curso = atoi(buffer);
+            }
+
+            printf("\nano (%d): ", turmas[k].ano);
+            fgets(buffer, TAM_MAX, stdin);
+            if (*buffer != '\n') {
+                cortar_nl(buffer);
+                turmas[k].ano = atoi(buffer);
+            }
+
+            int cpfs[TAM_MAX];
+            int cont = 0;
+
+            for (;;) {
+                LIMPAR_TELA();
+                CABECALHO();
+                printf("editando turma %d\n\n", turmas[k].numero);
+                printf("----: adicionar discentes :----\n\n");
+                
+                for (int x = 0; x < qtd_cads; ++x) {
+                    int add = 0;
+
+                    for (int y = 0; y < cont; ++y)
+                        if (x == cpfs[y]) add = 1;
+
+                    if (!add) {
+                        printf("+ (%d) %s (%s)\n", x, discentes[x].nome, discentes[x].cpf);
+                    }
+                }
+
+                printf("\n----: discentes adicionados :----\n\n");
+
+                if (cont == 0) {
+                    printf("nenhum discente adicionado!!\n");
+                } else {
+                    for (int z = 0; z < cont; ++z) {
+                        printf("+ %s (%s)\n", discentes[cpfs[z]].nome, discentes[cpfs[z]].cpf);
+                    }
+                }
+                printf("\n---------------------------------\n\n");
+                printf("digite o numero do discente para adicionar ou retirar\n");
+                printf("obs: insira 'r' para recomecar, 't' para terminar e 'q' para sair\n");
+                printf("> ");
+
+                fgets(buffer, TAM_MAX, stdin);
+                cortar_nl(buffer);
+
+                if (*buffer == 'q') return;
+                if (*buffer == 't') break;
+                if (*buffer == 'r') {
+                    cont = 0;
+                    continue;
+                }
+
+                cpfs[cont++] = atoi(buffer);
+            }
+
+            for (int h = 0; h < cont; ++h) {
+                remover_uma_turma(k, arquivos[ARQ_TURMAS]);
+                strcpy(turmas[k].cpf, discentes[cpfs[h]].cpf);
+                salvar_turma(turmas[k], arquivos[ARQ_TURMAS]);
+            }
+
+            return;
+        }
+    }
 }
 
 void salvar_turma(Turma turma, char *arquivo) {
@@ -875,9 +989,8 @@ int main(void) {
                 } else if(*opcao == '3') {
                     LIMPAR_TELA();
                     CABECALHO();
-                    printf("----: turmas :----\n\n");
-                    mostrar_turmas(turmas, qtd_turmas);
-                    editar_turma(arquivos[ARQ_TURMAS]);
+                    printf("----: editar turma :----\n\n");
+                    editar_turma(arquivos);
                 } else if(*opcao == '5') {
                     menu_atual = PRINCIPAL;
                 } else {
