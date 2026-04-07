@@ -11,6 +11,13 @@
 #include "utils.h"
 
 int main(void) {
+    // nomes de arquivos onde dados serao armazenados
+    char *arquivos[] = {
+        "cursos.csv",
+        "discentes.csv",
+        "turmas.csv"
+    };
+
     // menu em que usuario se encontra
     Menus menu_atual = PRINCIPAL;
 
@@ -26,13 +33,6 @@ int main(void) {
     int qtd_discentes = 0;
     int qtd_cursos = 0;
     int qtd_turmas = 0;
-
-    // nomes de arquivos onde dados serao armazenados
-    char *arquivos[] = {
-        "cursos.csv",
-        "discentes.csv",
-        "turmas.csv"
-    };
 
     // loop de menu
     for (;;) {

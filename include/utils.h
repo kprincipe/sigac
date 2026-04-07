@@ -1,13 +1,9 @@
 #ifndef UTILS_H
 #define UTILS_H
 
-// funcao que elimina caractere '\n' do final de uma string
-void cortar_nl(char *s);
-
-// contar quantidade de linhas (cadastros) existentes em arquivo
-int contar_cadastros(char *onde);
-int contar_cadastros(char *onde);
-void extrair_item(FILE *f, char *dst);
+void cortar_nl(char *s);                    // funcao que elimina caractere '\n' do final de uma string
+int contar_cadastros(char *onde);           // contar quantidade de linhas (cadastros) existentes em arquivo
+void extrair_item(FILE *f, char *dst);      // extrair string com dado individual entre virgulas em um arquivo csv
 
 #ifdef UTILS_IMPLEMENTATION
 
@@ -46,6 +42,5 @@ void extrair_item(FILE *f, char *dst) {
     }
 }
 
-#endif
-
+#endif // UTILS_IMPLEMENTATION
 #endif // UTILS_H

@@ -7,7 +7,6 @@
 
 #include "curso.h"
 
-// coleta dados de curso do usuario
 void cadastrar_curso(char *arquivo) {
     Curso curso = {0};
 
@@ -35,7 +34,6 @@ void cadastrar_curso(char *arquivo) {
     salvar_curso(curso, arquivo);
 }
 
-// le arquivo de cursos e popula vetor com as informacoes
 int popular_cursos(Curso *cursos, char *arquivo) {
     FILE *f = fopen(arquivo, "r");
 

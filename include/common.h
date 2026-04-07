@@ -11,6 +11,7 @@
 
 #define CABECALHO() printf("-- sistema TopArtBare --\n\n")
 
+// constantes de estado para menus
 typedef enum {
     PRINCIPAL = 0,
     DISCENTES,
@@ -21,6 +22,7 @@ typedef enum {
     SAIR
 } Menus;
 
+// constantes de identificacao dos arquivos de armazenamento de dados
 enum {
     ARQ_CURSOS,
     ARQ_DISCENTES,
