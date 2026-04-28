@@ -189,6 +189,8 @@ void pesquisar_discente(char *arquivo) {
 
             if (strcmp(buff, busca) == 0) {
                 mostrar_discente(discentes[i]);
+                printf("\n");
+                encontrados++;
             }
             c += 1;
         }

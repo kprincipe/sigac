@@ -45,7 +45,7 @@ int main(void) {
                 printf("(2) discentes\n");
                 printf("(3) turmas\n\n");
                 printf("(4) relatorios\n\n");
-                printf("(5) sair\n");
+                printf("(0) sair\n");
                 printf("> ");
                 
                 // leitura de entrada do usuario
@@ -62,7 +62,7 @@ int main(void) {
                     menu_atual = TURMAS;
                 } else if (*opcao == '4') {
                     menu_atual = RELATORIOS;
-                } else if (*opcao == '5') {
+                } else if (*opcao == '0') {
                     menu_atual = SAIR;
                 }
 
@@ -77,7 +77,7 @@ int main(void) {
                 printf("(1) cadastrar curso\n");
                 printf("(2) remover curso\n");
                 printf("(3) editar curso\n");
-                printf("(5) voltar\n\n");
+                printf("(0) voltar\n\n");
                 printf("> ");
 
                 fgets(opcao, TAM_MAX, stdin);
@@ -102,7 +102,7 @@ int main(void) {
                     }
 
                     editar_curso(arquivos[ARQ_CURSOS]);
-                } else if(*opcao == '5') {
+                } else if(*opcao == '0') {
                     menu_atual = PRINCIPAL;
                 } else {
                     LIMPAR_TELA();
@@ -122,7 +122,7 @@ int main(void) {
                 printf("(1) cadastrar discente\n");
                 printf("(2) remover discente\n");
                 printf("(3) editar discente\n");
-                printf("(5) voltar\n\n");
+                printf("(0) voltar\n\n");
                 printf("> ");
 
                 fgets(opcao, TAM_MAX, stdin);
@@ -147,7 +147,7 @@ int main(void) {
                     }
 
                     editar_discente(arquivos[ARQ_DISCENTES]);
-                } else if(*opcao == '5') {
+                } else if(*opcao == '0') {
                     menu_atual = PRINCIPAL;
                 } else {
                     LIMPAR_TELA();
@@ -166,7 +166,7 @@ int main(void) {
                 printf("(1) cadastrar turma\n");
                 printf("(2) remover turma\n");
                 printf("(3) editar turma\n");
-                printf("(5) voltar\n\n");
+                printf("(0) voltar\n\n");
                 printf("> ");
 
                 fgets(opcao, TAM_MAX, stdin);
@@ -186,7 +186,7 @@ int main(void) {
                     CABECALHO();
                     printf("----: editar turma :----\n\n");
                     editar_turma(arquivos);
-                } else if(*opcao == '5') {
+                } else if(*opcao == '0') {
                     menu_atual = PRINCIPAL;
                 } else {
                     LIMPAR_TELA();
