@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 #include "common.h"
 #include "discente.h"
@@ -161,25 +162,35 @@ void salvar_discente(Discente discente, char *arquivo) {
 
 void pesquisar_discente(char *arquivo) {
     char busca[TAM_MAX];
-    char buffer[TAM_MAX];
 
     Discente discentes[TAM_MAX];
     int qtd_discentes = popular_discentes(discentes, arquivo);
     int encontrados = 0;
 
     printf("> ");
-    fgets(buffer, TAM_MAX, stdin);
-    cortar_nl(buffer);
+    fgets(busca, TAM_MAX, stdin);
+    cortar_nl(busca);
+    int b_sz = strlen(busca);
+    for(int j = 0; j < b_sz; ++j) busca[j] = toupper(busca[j]);
 
     LIMPAR_TELA();
     
     CABECALHO();
     printf("----: resultado :----\n\n");
     for (int i = 0; i < qtd_discentes; ++i) {
-        strncpy(busca, discentes[i].nome, strlen(buffer));
-        if (strcmp(busca, buffer) == 0) {
-            encontrados++;
-            mostrar_discente(discentes[i]);
+        char buff[TAM_MAX];
+        int c = 0;
+        
+        while ((c + b_sz) <= strlen(discentes[i].nome)) {
+            strcpy(buff, discentes[i].nome + c);
+            buff[b_sz] = '\0';
+
+            for(int j = 0; j < b_sz; ++j) buff[j] = toupper(buff[j]);
+
+            if (strcmp(buff, busca) == 0) {
+                mostrar_discente(discentes[i]);
+            }
+            c += 1;
         }
     }
 
